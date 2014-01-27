@@ -1,0 +1,8 @@
+########################################################
+#                  Clipa VideoCatcher                  #
+########################################################
+url=http://en.clipa.tv/?uri=%s
+target=<a href="([/]get-video.flv[?]uri=.+?)" class="download"
+quality=standard
+build=http://en.clipa.tv%s
+########################################################
