@@ -106,13 +106,6 @@ director=VideoDevil
 icon=http://cdn-w.fapdu.com/FapDu/fo1-01.png
 url=fapdu.com.cfg
 ########################################################
-title=zzFuckTube
-type=rss
-genre=FuckTube
-director=VideoDevil
-icon=video.devil.image|fucktube.png
-url=fucktube.com.cfg
-########################################################
 title=zzKeezMovies
 type=rss
 genre=KeezMovies
@@ -182,13 +175,6 @@ genre=MovieFap
 director=VideoDevil
 icon=http://www.moviefap.com/images/logo.gif
 url=moviefap.com.cfg
-########################################################
-title=4tube
-type=rss
-genre=4tube
-director=VideoDevil
-icon=http://i.4tube.com/free-porn.png
-url=4tube.com.cfg
 ########################################################
 title=Empflix
 type=rss

@@ -1,382 +1,231 @@
 ########################################################
 # VideoDevil Catcher list
 ########################################################
-# player: overwrites plugin settings use --> auto, mplayer, dvdplayer
-# url: *%s* <- Start flag for CCatcherItem
+# title: str <- Start flag
+# target: RegEx <- Start flag
+# url: *%s*
 # data: *%s*
 # header str|str
 # limit: int
-# target: RegEx <- Start flag CCatcherRuleItem
-# actions: quote(match), unquote(match), decode(match), replace(match, string to replace, string to replace with), join(string joining listed strings, match, group2,) #match is match.group(1)
-# dkey: RegEx
-# dkey_actions: quote(match), unquote(match), decode(match), replace(match, string to replace, string to replace with)
+# action: str
+# build: *%s*
+# ext_target: RegEx
+# ext_url: *%s*
+# ext_data: *%s*
+# ext_header str|str
+# ext_limit: int
+# ext_action: str
+# ext_build: *%s*
 # extension: str (default = flv)
 # info: str
-# forward: default is False, use True if you want to forward match as url (required for url forwarding/redirecting)<- End flag for both CCatcherRuleItem and CCatcherItem
-# quality: low, standard, high or fallback <- End flag for CCatcherRuleItem
-# build: *%s* <- End flag for CCatcherItem
+# quality: low, standard, high or fallback <- End flag
 ########################################################
 # Catcher sites
 ########################################################
 title=ahme.com
+target=video src="([^"]+)"
 url=%s
 header=Cookie|gndr=F
-target=video src="([^"]+)"
 quality=standard
-build=%s
 ########################################################
 title=madthumbs.com
-url=%s
 target=<source src="([^"]+)"
+url=%s
 quality=standard
-build=%s
 ########################################################
 title=pornoxo.com
+target='file': "([^"]+)"
 url=%s
-target=file': "([^"]+)"
 quality=standard
-build=%s
 ########################################################
 title=freehdporn.ws
+target=flashvars=.+?url480=(http[^&]+)
 url=%s
-target=url180=(http[^\&]+180.mp4)
-extension=mp4
-info=180p
-quality=low
-target=url240=(http[^\&]+240.mp4)
-extension=mp4
-info=240p
-quality=low
-target=url360=(http[^\&]+360.mp4)
-extension=mp4
-info=360p
 quality=standard
-target=url480=(http[^&]+480.mp4)
-extension=mp4
-info=480p
-quality=standard
-target=url720=(http[^\&]+720.mp4)
-extension=mp4
-info=720p
+target=flashvars=.+?url720=(http[^\&]+)
 quality=high
-target=url1080=(http[^\&]+1080.mp4)
-extension=mp4
-info=1080p
-quality=high
-build=%s
+target=flashvars=.+?url360=(http[^\&]+)
+quality=low
 ########################################################
 title=gfvideos.com
-url=%s
 target=href="(/videos/[^"]+)"
-quality=standard
+url=%s
 build=http://www.girlfriendvideos.com%s
+quality=standard
 ########################################################
 title=hardsextube.com
-url=%s
 target=flv: "([^"]+)"
-quality=standard
+url=%s
 build=http://cdn.hardsextube.com%s
+quality=standard
 ########################################################
 title=m.hardsextube.com
-url=%s
 target=<a href="([^"]+)" id="playVideoLink"
+url=%s
 quality=low
-build=%s
 ########################################################
 title=eporner.com
-url=%s
 target=/config5/(\d+)/
-forward=True
-url=http://www.eporner.com/config5/%s
-target=file: "([^"]+\d-lq.mp4)"
+url=%s
+ext_target=file: "([^"]+\d-lq.mp4)"
+ext_url=http://www.eporner.com/config5/%s
 quality=low
-target=file: "([^"]+\d.mp4)"
+target=/config5/(\d+)/
+url=%s
+ext_target=file: "([^"]+\d.mp4)"
+ext_url=http://www.eporner.com/config5/%s
 quality=high
-build=%s
-########################################################
-title=pornotube.com
-url=%s
-target=url: "(http[^"]+)"
-quality=standard
-build=%s
-########################################################
-title=shufuni.com
-url=%s
-target=_videoFilePathHD = "([^"]+)"
-quality=standard
-build=%s
-########################################################
-title=youporn.com
-url=%s
-target=var\s+encryptedQuality240URL\s+=\s+'([^']+)';
-dkey=video_title'\s+:\s+"([^"]+)",
-dkey_actions=replace(match, &amp;, &)|unquote(match)
-info=240p
-quality=low
-target=var\s+encryptedQuality480URL\s+=\s+'([^']+)';
-dkey=video_title'\s+:\s+"([^"]+)",
-dkey_actions=replace(match, &amp;, &)|unquote(match)
-info=480p
-quality=standard
-target=var\s+encryptedQuality720URL\s+=\s+'([^']+)';
-dkey=video_title'\s+:\s+"([^"]+)",
-dkey_actions=replace(match, &amp;, &)|unquote(match)
-info=720p
-quality=high
-build=%s
-########################################################
-title=extremetube.com
-url=%s
-header=Cookie|age_verified=1
-target=flashvars" value=".*video_url=(http[^']+[.](mp4|flv)[^&]+)
-actions=unquote(match)
-quality=standard
-build=%s
-########################################################
-title=xvideos.com
-url=%s
-target=flv_url=(http[^"]+?)&amp;
-actions=unquote(match)
-quality=standard
-build=%s
-########################################################
-title=moviesand.com
-url=%s
-target=so.addVariable[(]"file", "(http[^']+.flv.*?)"[)];
-quality=standard
-build=%s
-########################################################
-title=redtube.com
-url=%s
-target=source src='([^']+)'
-quality=standard
-build=%s&ec_seek=0
-########################################################
-title=mofosex.com
-url=%s
-target=<a href="(http://[^"]+(flv|mp4)[?][^"]+hash=[^"]+)"
-quality=standard
-build=%s
-########################################################
-title=xhamster.com
-url=%s
-target=srv': '([^']+)',\s+'file': '([^']+flv)',
-actions=join(/key=, match, group2)
-quality=standard
-target=file': '([^']+.flv[^']+)'
-actions=unquote(match)
-quality=standard
-build=%s
-########################################################
-title=hotgoo.com
-url=%s
-target=so.addVariable\('file','(.+?)'
-quality=standard
-build=%s
-########################################################
-title=boysfood.com
-url=%s
-target=href="([^"]+)"> mp4</a>
-extension=wmv
-quality=standard
-build=%s
-########################################################
-title=keezmovies.com
-url=%s
-header=Cookie|age_verified=1
-target=video_url=(http.+)[&]amp;postroll_url
-quality=standard
-build=%s
-########################################################
-title=motherless.com
-url=%s
-target=fileurl = '([^']+flv)'
-quality=standard
-build=%s?start=0
-########################################################
-title=pornomovies
-url=%s
-target=(http[^"]+.flv[^"]+)
-quality=standard
-build=%s
-########################################################
-title=simple-match
-url=%s
-target=href="(http://[^"<]+?.flv)"
-quality=standard
-build=%s
-########################################################
-title=spankwire.com
-url=%s
-target=flashvars.quality_180p = "([^"]+180p[^"]+mp4[^"]+)";\s+(?=flashvars.(?:r|quality_\d+p) = ")
-actions=unquote(match)
-extension=mp4
-info=180p
-quality=low
-target=flashvars.quality_240p = "([^"]+240p[^"]+mp4[^"]+)";\s+(?=flashvars.(?:r|quality_\d+p) = ")
-actions=unquote(match)
-extension=mp4
-info=240p
-quality=low
-target=flashvars.quality_480p = "([^"]+480p[^"]+mp4[^"]+)";\s+(?=flashvars.(?:r|quality_\d+p) = ")
-actions=unquote(match)
-extension=mp4
-info=480p
-quality=standard
-target=flashvars.quality_720p = "([^"]+720p[^"]+mp4[^"]+)";\s+(?=flashvars.(?:r|quality_\d+p) = ")
-actions=unquote(match)
-extension=mp4
-info=720p
-quality=high
-target=flashvars.quality_1080p = "([^"]+1080p[^"]+mp4[^"]+)";\s+(?=flashvars.(?:r|quality_\d+p) = ")
-actions=unquote(match)
-extension=mp4
-info=1080p
-quality=high
-build=%s
-########################################################
-title=yuvutu.com
-url=%s
-header=Cookie|gndr=F
-target=file: "([^"]+)"
-quality=standard
-build=%s
-########################################################
-title=fapdu.com
-url=%s
-target=file" : "([^ ]+)"
-quality=standard
-build=%s
-########################################################
-title=fucktube.com
-url=%s
-target=url:\s+"(http://.+?mp4[^"]+)
-quality=standard
-build=%s
-########################################################
-title=moviefap.com
-url=%s
-target=flashvars.config = escape."([^ ]+)VID=
-forward=True
-url=%s
-target=<videoLink>(.+?)</videoLink>
-quality=standard
-build=%s
-########################################################
-title=pornhub.com
-url=%s
-target=quality_180p":"([^"]+)"
-actions=unquote(match)
-dkey=video_title":"([^"]+)"
-dkey_actions=replace(match, +,  )|unquote(match)
-info=180p
-quality=low
-target=quality_240p":"([^"]+)"
-actions=unquote(match)
-dkey=video_title":"([^"]+)"
-dkey_actions=replace(match, +,  )|unquote(match)
-info=240p
-quality=low
-target=quality_360p":"([^"]+)"
-actions=unquote(match)
-dkey=video_title":"([^"]+)"
-dkey_actions=replace(match, +,  )|unquote(match)
-info=360p
-quality=standard
-target=quality_480p":"([^"]+)"
-actions=unquote(match)
-dkey=video_title":"([^"]+)"
-dkey_actions=replace(match, +,  )|unquote(match)
-info=480p
-quality=standard
-target=quality_720p":"([^"]+)"
-actions=unquote(match)
-dkey=video_title":"([^"]+)"
-dkey_actions=replace(match, +,  )|unquote(match)
-info=720p
-quality=high
-target=quality_1080p":"([^"]+)"
-actions=unquote(match)
-dkey=video_title":"([^"]+)"
-dkey_actions=replace(match, +,  )|unquote(match)
-info=1080p
-quality=high
-build=%s
-########################################################
-title=m.pornhub.com
-url=%s
-target=<a href="([^"]+\.mp4[^"]*)"
-quality=low
-build=%s
-########################################################
-title=4tube.com
-url=%s
-target=file":"([^"]+)"
-actions=decode(match)
-quality=standard
-build=%s
-########################################################
-title=empflix.com
-url=%s
-target=flashvars\.config\s*=\s*escape\("([^"]*)"\);
-forward=True
-url=%s
-target=<videoLink>([^<]*)
-quality=standard
-build=%s
-########################################################
-title=slutload.com
-url=%s
-target=id="vidPlayer"\s+data-url="([^"]+slutload-media.com[^"]+)"
-extension=mp4
-quality=standard
-build=%s
-########################################################
-title=sunporno.com
-url=%s
-target=class="embed">&lt;iframe src="([^"]*)"
-forward=True
-url=%s
-target=video src="([^"]*)"
-quality=standard
-build=%s
-########################################################
-# Website Catchers
 ########################################################
 title=2video.de
-url=http://www.2video.de/index.php?dl=%s&skill=download
 target=<div id="box">[^<]*<h2>Download</h2>[^<]*<p><a href="([^"]+)" target="_blank">
+url=http://www.2video.de/index.php?dl=%s&skill=download
 quality=standard
-build=%s
 ########################################################
 title=clipnabber.com
-url=http://clipnabber.com
 target=<div id="Math">(\d+)</div>
-quality=fallback
+url=http://clipnabber.com
 build=%s
+quality=fallback
 ########################################################
 title=atrapavideo.com
+target=so.addVariable\('file','(.+?.flv)
 url=http://www.atrapavideo.com/video
 data=data[url]=%s
 header=Referer|http://www.atrapavideo.com/en/
-target=so.addVariable\('file','(.+?.flv)
 quality=standard
-build=%s
 ########################################################
 title=getvids.de
+target=href="([^"]+)" title="Download">
 url=http://getvids.de/video.cgi
 data=downloadurl=%s
 header=Referer|http://getvids.de/video.cgi
-target=href="([^"]+)" title="Download">
 quality=standard
-build=%s
 ########################################################
 title=degrab.de
-url=http://www.degrab.de/?url=%s
 target=Download Link.+?<a href="([^"]+)"
-actions=unquote(match)
+url=http://www.degrab.de/?url=%s
+action=unquote
 quality=standard
-build=%s
+########################################################
+title=pornotube.com
+target=url: "(http[^"]+)"
+url=%s
+quality=standard
+########################################################
+title=kcoolonline.com
+target=<a href='(.+?)' title='Download Flv Here'>
+url=http://kcoolonline.com/token.php
+data=url=%s
+quality=standard
+########################################################
+title=shufuni.com
+target=_videoFilePathHD = "([^"]+)"
+url=%s
+quality=standard
+########################################################
+title=youporn.com
+target=<a href="([^"]+)">\s*MP4
+url=%s
+action=decode
+header=Cookie|age_check=1
+quality=standard
+########################################################
+title=extremetube.com
+target="flashvars" value=".*video_url=(http[^']+[.](mp4|flv)[^&]+)
+url=%s
+header=Cookie|age_verified=1
+quality=standard
+########################################################
+title=xvideos.com
+target=flv_url=(http[^"]+?)&amp;
+url=%s
+quality=standard
+########################################################
+title=moviesand.com
+target=so.addVariable[(]"file", "(http[^']+.flv.*?)"[)];
+url=%s
+quality=standard
+########################################################
+title=redtube.com
+target=source src='([^']+)'
+url=%s
+build=%s&ec_seek=0
+quality=standard
+########################################################
+title=mofosex.com
+target=<a href="(http://[^"]+(flv|mp4)[?][^"]+hash=[^"]+)"
+url=%s
+quality=standard
+########################################################
+title=xhamster.com
+target='file': '(.+?.flv)'
+url=%s
+build=http://xhcdn.com/key=%s
+quality=standard
+########################################################
+title=hotgoo.com
+target=so.addVariable\('file','(.+?)'
+url=%s
+quality=standard
+########################################################
+title=boysfood.com
+target=href="([^"]+)"> mp4</a>
+url=%s
+extension=wmv
+quality=standard
+########################################################
+title=keezmovies.com
+target=video_url=(http.+)[&]amp;postroll_url
+url=%s
+header=Cookie|age_verified=1
+quality=standard
+########################################################
+title=motherless.com
+target=fileurl = '([^']+flv)'
+url=%s
+build=%s?start=0
+quality=standard
+########################################################
+title=pornomovies
+target=(http[^"]+.flv[^"]+)
+url=%s
+quality=standard
+########################################################
+title=clipa.tv
+target=<a href="([/]get-video.flv[?]uri=.+?)" class="download"
+url=http://en.clipa.tv/?uri=%s
+build=http://en.clipa.tv%s
+quality=standard
+########################################################
+title=simple-match
+target=(http://[^"<]+?.flv)
+url=%s
+quality=standard
+########################################################
+title=spankwire.com
+target="(http%3[^"]+mp4[^"]+)";\s+flashvars.(r|quality_\d+)p = ""
+url=%s
+action=unquote
+extension=mp4
+quality=standard
+########################################################
+title=yuvutu.com
+target=file: "([^"]+)"
+url=%s
+header=Cookie|gndr=F
+quality=standard
+########################################################
+title=fapdu.com
+target="file" : "([^ ]+)"
+url=%s
+quality=standard
+########################################################
+title=moviefap.com
+target=flashvars.config = escape."([^ ]+)VID=
+url=%s
+ext_target=<videoLink>(.+?)</videoLink>
+ext_url=%s
+quality=standard
 ########################################################
 #title=grabit.to
 #target=<h1>Der Downloadlink wurde erfolgreich gefunden\!</h1>[^<]+<p>Video: </p>[^<]+<p><strong><a href="([^"]+)">
@@ -395,16 +244,38 @@ build=%s
 #target=<a href="([^"]+)" class="link" target="\_blank">
 #quality=fallback
 ########################################################
-title=clipa.tv
-url=http://en.clipa.tv/?uri=%s
-target=<a href="([/]get-video.flv[?]uri=.+?)" class="download"
+title=pornhub.com
+target="video_url":"([^"]+)"
+url=%s
 quality=standard
-build=http://en.clipa.tv%s
 ########################################################
-title=kcoolonline.com
-url=http://kcoolonline.com/token.php
-data=url=%s
-target=<a href='(.+?)' title='Download Flv Here'>
+title=m.pornhub.com
+target=<a href="([^"]+\.mp4[^"]*)"
+url=%s
+quality=low
+########################################################
+#title=viloader.net
+#target=unescape%28%22(http.+?\.flv)%22%29%3
+#url=http://www.viloader.net/mybic_server.php
+#data=skill=formDownload&url=%s&json=false
+#header=Referer|http://www.viloader.net
+#quality=standard
+########################################################
+title=empflix.com
+target=flashvars\.config\s*=\s*escape\("([^"]*)"\);
+url=%s
+ext_target=<videoLink>([^<]*)
+ext_url=%s
 quality=standard
-build=%s
+########################################################
+title=slutload.com
+target=data-url="([^"]+)"
+url=%s
+action=unquote
+quality=standard
+########################################################
+title=sunporno.com
+target=source[^>]+?"([^"]+flv)"
+url=%s
+quality=standard
 ########################################################
