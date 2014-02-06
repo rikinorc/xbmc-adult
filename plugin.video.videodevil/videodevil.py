@@ -1000,6 +1000,7 @@ class CCurrentList:
             self.player = value[line]
             line += 1
         while line < length and key[line]:
+            print('key = ' + key[line])
             if key[line] == u'url':
                 catcher_tmp = CCatcherItem()
                 catcher_tmp.url = value[line]
@@ -1015,6 +1016,7 @@ class CCurrentList:
                 catcher_tmp.limit = int(value[line])
                 line += 1
             while line < length:
+                print('key = ' + key[line])
                 if key[line] == u'target':
                     rule_tmp = CCatcherRuleItem()
                     rule_tmp.target = value[line]
@@ -1035,7 +1037,8 @@ class CCurrentList:
                     self.catcher.append(catcher_tmp)
                     line += 1
                     break
-                while key[line] != u'quality':
+                while key[line] != u'quality' and key[line] != u'forward':
+                    print('key = ' + key[line])
                     if key[line] == u'actions':
                         if value[line].find(u'|'):
                             rule_tmp.actions = value[line].split(u'|')
@@ -1063,6 +1066,7 @@ class CCurrentList:
 
     def getDirectLink(self, url, lItem):
         for catcher in self.catcher:
+            print('url = ' + url)
             # Download website
             if catcher.data == '':
                 if catcher.url.find(u'%') != -1:
@@ -1090,6 +1094,7 @@ class CCurrentList:
             url = self.remoteLoops(catcher, url, catcher.rules, data, lItem)
 
         link = self.selectLink()
+        print('link = ' + link)
         return link
 
     # Parsing loops for loadRemote and getDirectlink
@@ -1194,6 +1199,7 @@ class CCurrentList:
                 if point == intersting_point:
                     point += 1
             else:
+                log('Parsing complete')
                 break
         return url
 
@@ -1265,7 +1271,6 @@ class CCurrentList:
         if len(rule.actions) > 0:
             item = parseActions(item, rule.actions, url)
         item[u'url'] = rule.url_build % item[u'url']
-        
         return item
 
     def infoFormatter(self, item):
@@ -1338,12 +1343,12 @@ class CCurrentList:
         if rule.forward:
             url = link
             point = length
+            print('forwarding')
             return url, point
-        if rule.quality == u'fallback':
-            self.videoExtension = u'.' + rule.extension
-            point = length
         rule.link = link
-        self.selectLinkLists(link, rule)
+        if rule.quality == u'fallback':
+            point = length
+        self.selectLinkLists(rule)
         return url, point
 
     def selectLink(self):
@@ -1387,16 +1392,17 @@ class CCurrentList:
             link = ''
         return link
 
-    def selectLinkLists(self, link, rule):
+    def selectLinkLists(self, rule):
         selList_type = {
             u'low' : __language__(30056), 
             u'standard' : __language__(30057), 
             u'high' : __language__(30058)
         }
-        self.urlList.append(link)
+        self.urlList.append(rule.link)
         self.extensionList.append(rule.extension)
-        append = rule.info or rule.extension
-        self.selectionList.append(selList_type[rule.quality] + ' (' + append + ')')
+        if rule.quality != 'fallback':
+            append = rule.info or rule.extension
+            self.selectionList.append(selList_type[rule.quality] + ' (' + append + ')')
         self.decryptList.append(rule.dkey)
 
     def dkeyBuilder(self, rule, url, match):
@@ -1721,7 +1727,6 @@ class Main:
                         lizItems.append(self.addListItem(self.currentlist.codeUrl(m, 'videodevil'), m))
                     elif m[u'type'] != u'once':
                         lizItems.append(self.addListItem(self.currentlist.codeUrl(m), m))
-                print('lizItems = ' + str(lizItems))
                 xbmcplugin.addDirectoryItems(int(sys.argv[1]), lizItems, len(self.currentlist.items))
         return result
 
