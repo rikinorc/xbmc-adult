@@ -4,6 +4,7 @@
     <string id="30001">XBMC Media Center</string>
 
     <string id="20191">Enable debug logging</string>
+    <string id="20192">Show only my shortcuts</string>
     <string id="30002">Disable disclaimer</string>
     <string id="30003">Player type</string>
     <string id="30004">Auto</string>

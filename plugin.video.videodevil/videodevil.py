@@ -446,22 +446,12 @@ def smart_read_file(filename):
     for directory in [catDir, resDir, cacheDir, '']:
         try:
             f = open(os.path.join(directory, filename), 'r')
-            log(
-                'File: ' +
-                os.path.join(directory, filename) +
-                ' opened'
-            )
             break
         except:
-            log(
-                'File: ' +
-                os.path.join(directory, filename) +
-                ' not found'
-            )
             if directory == '':
                 traceback.print_exc(file = sys.stdout)
             if directory == '':
-                return False, False
+                return None, None, 'File Not Found'
 
     key = []
     value = []
@@ -477,22 +467,34 @@ def smart_read_file(filename):
         try:
             k, v = line.split(u'=', 1)
         except:
-            log('Line does not start with a \'#\' or does not contain an \'=\'')
-            log('Line = ' + line.encode('utf-8'))
+#            log('Line does not start with a \'#\' or does not contain an \'=\'')
+#            log('Line = ' + line.encode('utf-8'))
             continue
         if v.startswith(u'video.devil.'):
             idx = v.find(u'|')
             if v[:idx] == u'video.devil.locale':
-                v = '  ' + __language__(int(v[idx+1:])) + '  '
+                v = u'  ' + __language__(int(v[idx+1:])) + u'  '
             elif v[:idx] ==u'video.devil.image':
                 v = os.path.join(imgDir, v[idx+1:])
             elif v[:idx] == u'video.devil.context':
-                v = 'context.' + __language__(int(v[idx+1:]))
-            v = smart_unicode(v)
+                v = u'context.' + __language__(int(v[idx+1:]))
         key.append(k)
         value.append(v)
     f.close()
-    return key, value
+    return key, value, 'File Opened'
+
+'''
+                if item_rule.skill.find('append') != -1:
+                    if curr_url[len(curr_url) - 1] == '?':
+                        tmp.infos_values[info_idx] = curr_url + tmp.infos_values[info_idx]
+                    else:
+                        tmp.infos_values[info_idx] = curr_url + '&' + tmp.infos_values[info_idx]
+                if item_rule.skill.find('param') != -1:
+                    if curr_url.rfind('?') == -1:
+                        tmp.infos_values[info_idx] = curr_url + '?' + tmp.infos_values[info_idx]
+                    else:
+                        tmp.infos_values[info_idx] = curr_url[:curr_url.rfind('?')] + '?' + tmp.infos_values[info_idx]
+'''
 
 def parseActions(item, convActions, url = None):
     for convAction in convActions:
@@ -521,8 +523,18 @@ def parseActions(item, convActions, url = None):
         else:
             action = convAction
 
-            if action == u'urlappend':
+            if action == u'append':
                 item[u'url'] = url + item[u'url']
+            elif action == u'appendparam':
+                if url[-1] == u'?':
+                    item[u'url'] = url + item[u'url']
+                else:
+                    item[u'url'] = url + u'&' + item[u'url']
+            elif action == u'replaceparam':
+                if url.rfind('?') == -1:
+                    item[u'url'] = url + u'?' + item[u'url']
+                else:
+                    item[u'url'] = url[:url.rfind('?')] + u'?' + item[u'url']
             elif action == u'striptoslash':
                 if url.rfind(u'/'):
                     idx = url.rfind(u'/')
@@ -530,11 +542,11 @@ def parseActions(item, convActions, url = None):
                         item[u'url'] = url + u'/' + item[u'url']
                     else:
                         item[u'url'] = url[:idx + 1] + item[u'url']
-            elif action == u'space':
-                try:
-                    item[u'title'] = ' ' + item[u'title'].strip() + ' '
-                except:
-                    pass
+#            elif action == u'space':
+#                try:
+#                    item[u'title'] = u' ' + item[u'title'].strip(u' ') + u' '
+#                except:
+#                    pass
     return item
 
 def log(s):
@@ -579,6 +591,7 @@ class CRuleItem:
         self.order = []
         self.skill = ''
         self.curr = ''
+        self.type = ''
         self.pattern2 = ''
         self.pattern2RE = ''
         self.dtitle = ''
@@ -606,6 +619,7 @@ class CCatcherRuleItem:
 
 class CRuleSite:
     def __init__(self):
+        self.status = {}
         self.start = ''
         self.startRE = ''
         self.cfg = ''
@@ -615,8 +629,13 @@ class CRuleSite:
         }
         self.data = ''
         self.rules = []
+        self.items = []
+        self.searches = []
+        self.categories = []
+        self.sorts = []
+        self.next = []
 
-class CCatcherItem:
+class CCatcherRuleSite:
     def __init__(self):
         self.url = ''
         self.startRE = ''
@@ -625,13 +644,10 @@ class CCatcherItem:
         self.data = ''
         self.rules = []
 
-class CCurrentList:
+class CCatcherList:
     def __init__(self):
-        self.sort = [u'label', u'genre']
-        self.skill = ''
-        self.player = ''
-
-        self.catcher = []
+        self.status = {}
+        self.sites = []
         self.urlList = []
         self.extensionList = []
         self.selectionList = []
@@ -639,198 +655,278 @@ class CCurrentList:
         self.videoExtension = u'.flv'
         self.dkey = ''
 
+class CCurrentList:
+    def __init__(self):
+        self.sort = [u'label', u'genre']
+        self.skill = ''
+        self.player = ''
+        self.catcher = ''
         self.sites = []
         self.items = []
         self.dirs = {}
-        self.searchList = []
-        self.categoryList = []
-        self.sortList = []
-        self.nextList = []
 
-    def parser(self, url):
-        lItem = self.decodeUrl(url)
-        url = lItem[u'url']
-        ext = self.getFileExtension(url)
-        if ext == u'videodevil' or ext == u'dwnlddevil':
-            url = url[:-11]
-            lItem[u'url'] = url
-            catcher = lItem[u'catcher']
+    def videoCount(self):
+        count = 0
+        for item in self.items:
+            if item[u'type'] == u'video':
+                count = count +1
+        return count
+
+    def getVideo(self):
+        for item in self.items:
+            if item[u'type'] == u'video':
+                return item
+
+    def parser(self, lItem):
+        searchesDict =  {
+            u'title': u'  ' + __language__(30102) + u'  ',
+            u'icon': os.path.join(imgDir, u'search.png'),
+            u'url': u'Search.directory',
+            u'type': u'directory'
+        }
+        categoriesDict = {
+            u'title': u'   ' + __language__(30100) + u'   ',
+            u'icon': os.path.join(imgDir, u'face_devil_grin.png'),
+            u'url': u'Categories.directory',
+            u'type': u'directory'
+        }
+        sortsDict = {
+            u'title': u'   ' + __language__(30109) + u'   ',
+            u'icon': os.path.join(imgDir, u'face_kiss.png'),
+            u'url': u'Sorting.directory',
+            u'type': u'directory'
+        }
+        nextDict = {
+            u'title': __language__(30103),
+            u'icon': os.path.join(imgDir, u'next.png'),
+            u'url': u'Next_Pages.directory',
+            u'type': u'rss'
+        }
+
+#        print('lItem = ' + str(lItem))
+        ext = self.getFileExtension(lItem[u'url'])
+#        print('ext = ' + ext)
+        if lItem[u'type'] == u'video' or lItem[u'type'] == u'download':
             if lItem[u'type'] == u'video':
-                self.loadCatcher(catcher)
+                self.catcher = self.loadCatcher(lItem[u'catcher'])
                 lItem[u'url'] = self.getDirectLink(lItem[u'url'], lItem)
             if 'extension' in lItem:
                 self.videoExtension = u'.' + lItem[u'extension']
-            resultCode = -2
         elif ext == u'add':
-            self.addItem(url[:-4], lItem)
+            self.addItem(lItem[u'url'][:-4], lItem)
             result = -2
         elif ext == u'remove':
             dia = xbmcgui.Dialog()
             if dia.yesno('', __language__(30054)):
-                self.removeItem(url[:-7])
+                self.removeItem(lItem[u'url'][:-7])
                 xbmc.executebuiltin(u'Container.Refresh')
             result = -2
-        elif ext == u'dir':
-            resultCode = self.loadLocal(url)
-            tmpItems = list(self.items)
-            self.items[:] = []
-            self.sites[:] = []
-            for item in tmpItems:
-                if item[u'type'] == u'link':
-                    resultCode = self.loadLocal(item[u'cfg'], item)
-                    self.sites[-1].start = item[u'url']
-                else:
-                    self.items.append(item)
-            xbmc.log('Fetching websites')
-            args_list = []
-            for item, site in enumerate(self.sites):
-                args = (site, tmpItems[item])
-                args_list.append(args)
-            run_parallel_in_threads(self.loadRemote, args_list)
-            self.dirs = self.createDict(self.items)
-            self.items = []
-            for item_title, item_value in self.dirs.iteritems():
-                itemfilename = clean_filename(url[:-4] + u'.' + item_title.strip() + u'.list')
-                self.saveList(cacheDir, itemfilename, item_value, Listname = item_title.strip())
-                tmp = CListItem()
-                tmp.infos_dict[u'title'] = capitalize(item_title)
-                tmp.infos_dict[u'url'] = itemfilename
-                tmp.infos_dict[u'type'] = u'list'
-                tmp.merge(lItem)
-                self.items.append(tmp.infos_dict)
-        elif ext == u'list':
-            resultCode = self.loadLocal(url, lItem)
-            tmpItems = []
-            if lItem[u'type'] == u'search':
-                search_phrase = self.getSearchPhrase()
-                tmpItems.extend(self.searchList)
+        elif lItem[u'mode'] == u'startView':
+            self.items = self.loadLocal(lItem[u'url'], lItem).items
+            tmp = CListItem()
+            tmp.infos_dict = {
+                u'title': u' All Sites',
+                u'mode': u'viewAll',
+                u'icon': os.path.join(imgDir, u'face_devil_grin.png'),
+                u'director': u'VideoDevil',
+                u'url': u'sites.list'
+            }
+            tmp.merge(lItem)
+            self.items.append(tmp.infos_dict)
+#            print(self.items)
+        elif lItem[u'mode'] == u'view':
+            print('lItem = ' + str(lItem))
+            if lItem[u'type'] == u'directory':
+                print('lItem = ' + str(lItem))
+                self.sites = self.loadLocal(lItem[u'url'], lItem)
+                print('len(self.sites.searches) = ' + str(len(self.sites.searches)))
+                print('len(self.sites.categories) = ' + str(len(self.sites.categories)))
+                print('len(self.sites.sorts) = ' + str(len(self.sites.sorts)))
+                print('len(self.sites.next) = ' + str(len(self.sites.next)))
+                print('len(self.sites.items) = ' + str(len(self.sites.items)))
+
             else:
-                tmpItems.extend(self.items)
-            self.items[:] = []
-            self.sites[:] = []
-            for item in tmpItems:
-                if u'cfg' in item:
-                    resultCode = self.loadLocal(item[u'cfg'], item)
-                    if lItem[u'type'] == u'search':
-                        item[u'url'] = item[u'url'] % search_phrase
-                    if u'url' in item:
-                        self.sites[-1].start = item[u'url']
+                if u'cfg' in lItem:
+                    self.sites = self.loadLocal(lItem[u'cfg'], lItem)
+                    self.sites.start = lItem[u'url']
                 else:
-                    resultCode = self.loadLocal(item[u'url'], item)
-            xbmc.log('Fetching websites')
-            args_list = []
-            xbmc.log('Websites fetched')
-            xbmc.log('Parsing websites')
-            
-            for item, site in enumerate(self.sites):
-                args = (site, tmpItems[item])
-                args_list.append(args)
-            run_parallel_in_threads(self.loadRemote, args_list)
-            xbmc.log('Websites parsed')
+                    self.sites = self.loadLocal(lItem[u'url'], lItem)
+#                if self.sites.rules:
+                print('len(self.sites.rules) = ' + str(len(self.sites.rules)))
+                self.loadRemote(self.sites, lItem)
+                print('len(self.sites.categories) = ' + str(len(self.sites.categories)))
+                print('len(self.sites.sorts) = ' + str(len(self.sites.sorts)))
+                print('len(self.sites.next) = ' + str(len(self.sites.next)))
+                print('len(self.sites.items) = ' + str(len(self.sites.items)))
+                print('self.sites.items = ' + str(self.sites.items))
 
-            # Create search item
-            if len(self.searchList) > 0:
-                xbmc.log('Creating search item')
-                tmp = CListItem()
-                filename = u'search.list'
-                tmp.infos_dict[u'title'] = '  ' + __language__(30102) + '  '
-                tmp.infos_dict[u'icon'] = os.path.join(imgDir, u'search.png')
-                tmp.infos_dict[u'url'] = filename
-                tmp.infos_dict[u'type'] = u'search'
-                tmp.merge(lItem)
-                self.items.append(tmp.infos_dict)
-                self.saveList(cacheDir, filename, self.searchList, Listname = 'Search List')
-                xbmc.log('search item created')
+                if lItem[u'type'] == u'rss':
 
-            # Create Category item
-            if len(self.categoryList) > 0:
-                xbmc.log('Creating Category item')
-                tmp = CListItem()
-                filename = u'Categories.dir'
-                tmp.infos_dict[u'title'] = '   ' + __language__(30100) + '   '
-                tmp.infos_dict[u'icon'] = os.path.join(imgDir, u'face_devil_grin.png')
-                tmp.infos_dict[u'url'] = filename
-                tmp.infos_dict[u'type'] = u'category'
-                tmp.merge(lItem)
-                self.items.append(tmp.infos_dict)
-                self.saveList(cacheDir, filename, self.categoryList, Listname = 'Categories')
-                xbmc.log('Category item created')
+                    # Create Category item
+                    if len(self.sites.categories) > 0:
+                        xbmc.log('Creating Category item')
+                        tmp = CListItem()
+                        tmp.infos_dict = categoriesDict
+                        tmp.merge(lItem)
+                        self.items.append(tmp.infos_dict)
+                        if not os.path.exists(os.path.join(cacheDir, u'Categories.directory')):
+                            self.saveList(cacheDir, u'Categories.directory', self.sites.categories, Listname = 'Categories')
+                        xbmc.log('Category item created')
 
-            # Create sorting item
-            if len(self.sortList) > 0:
-                xbmc.log('Creating sorting item')
-                tmp = CListItem()
-                filename = u'Sorting.dir'
-                tmp.infos_dict[u'title'] = '   ' + __language__(30109) + '   '
-                tmp.infos_dict[u'icon'] = os.path.join(imgDir, u'face_kiss.png')
-                tmp.infos_dict[u'url'] = filename
-                tmp.infos_dict[u'type'] = u'sort'
-                tmp.merge(lItem)
-                self.items.append(tmp.infos_dict)
-                self.saveList(cacheDir, filename, self.sortList, Listname = 'Sorting')
-                xbmc.log('Sorting item created')
+                    # Create sorting item
+                    if len(self.sites.sorts) > 0:
+                        xbmc.log('Creating sorting item')
+                        tmp = CListItem()
+                        tmp.infos_dict = sortsDict
+                        tmp.merge(lItem)
+                        self.items.append(tmp.infos_dict)
+                        self.saveList(cacheDir, u'Sorting.directory', self.sites.sorts, Listname = 'Sorting')
+                        xbmc.log('Sorting item created')
 
-            # Create search item
-            if len(self.nextList) > 0:
-                xbmc.log('Creating search item')
-                tmp = CListItem()
-                filename = u'Next_Pages.list'
-                tmp.infos_dict[u'title'] = __language__(30103).strip()
-                tmp.infos_dict[u'icon'] = os.path.join(imgDir, u'next.png')
-                tmp.infos_dict[u'url'] = filename
-                tmp.infos_dict[u'type'] = u'next'
-                tmp.merge(lItem)
-                self.items.append(tmp.infos_dict)
-                self.saveList(cacheDir, filename, self.nextList, Listname = 'Next Pages')
-                xbmc.log('search item created')
+                self.items.extend(self.sites.next)
+            self.items.extend(self.sites.items)
+        elif lItem[u'mode'] == u'viewAll':
 
-            # Create directory items
-            xbmc.log('Creating directory items')
-            for dir_name, dir_value in self.dirs.iteritems():
-                tmpItems = []
-                tmp = CListItem()
-                catfilename = clean_filename(dir_name[0].strip() + u'.dir')
-                tmp.infos_dict[u'title'] = dir_name[0]
-                tmp.infos_dict[u'icon'] = dir_name[1]
-                tmp.infos_dict[u'url'] = catfilename
-                tmp.infos_dict[u'type'] = u'directory'
-                tmp.merge(lItem)
-                self.items.append(tmp.infos_dict)
-                for item_title, item_value in dir_value.iteritems():
-                    itemfilename = clean_filename(dir_name[0].strip() + u'.' + item_title.strip() + u'.list')
-                    self.saveList(cacheDir, itemfilename, item_value, Listname = item_title.strip())
-                    tmp = CListItem()
-                    tmp.infos_dict[u'title'] = item_title
-                    tmp.infos_dict[u'icon'] = dir_name[1]
-                    tmp.infos_dict[u'url'] = itemfilename
-                    tmp.infos_dict[u'type'] = u'list'
-                    tmp.merge(lItem)
-                    tmpItems.append(tmp.infos_dict)
-                self.saveList(cacheDir, catfilename, tmpItems, Listname = dir_name[0].strip(), mode = 'a')
-            self.dirs = {}
-            xbmc.log('Directory items created')
+            #Loading temporary local file
+            List = self.loadLocal(lItem[u'url'], lItem)
+            if List == None:
+                return -2, lItem
+#            print('lItem = ' + str(lItem))
+#            print('len(List.items) = ' + str(len(List.items)))
 
-        return resultCode, lItem, ext
+            #Loading local files in the temporary local file
+            for item in List.items:
+                if item[u'type'] == u'category':
+                    List.categories.append(item)
+                elif item[u'type'] == u'sort':
+                    List.sorts.append(item)
+                elif item[u'type'] == u'rss' or item[u'type'] == u'search':
+#                    print(item)
+                    if u'cfg' in item:
+                        site = self.loadLocal(item[u'cfg'], item)
+                        if item[u'type'] == u'search':
+                            search_phrase = self.getSearchPhrase()
+                            item[u'url'] = item[u'url'] % search_phrase
+                        site.start = item[u'url']
+                    else:
+                        site = self.loadLocal(item[u'url'], item)
+                    self.sites.append((site, item))
+#                    print('item[u\'mode\'] 1= ' + item[u'mode'])
+
+#            print('len(self.sites) = ' + str(len(self.sites)))
+
+            #If no further downloads or parsing required append items to self
+            if self.sites == []:
+                print('No further sites to parse')
+
+            #Else Download and parse sites for items
+            else:
+                xbmc.log('Fetching and parsing websites')
+                run_parallel_in_threads(self.loadRemote, self.sites)
+
+                #Create a list for each item to append to self.items
+                print('lItem = ' + str(lItem))
+                if lItem[u'type'] == u'directory':
+                    if lItem[u'url'] == u'Categories.directory':
+                        dirs_tmp = List.categories
+                        for (site, item) in self.sites:
+                            dirs_tmp.extend(site.categories)
+                    else:
+                        dirs_tmp = List.sorts
+                        for (site, item) in self.sites:
+                            dirs_tmp.extend(site.sorts)
+                    self.createDirItems(dirs_tmp, lItem)
+
+                else:
+
+                    #Create items to append to self.items
+                    print('len(List.searches) = ' + str(len(List.searches)))
+                    print('len(List.categories) = ' + str(len(List.categories)))
+                    print('len(List.sorts) = ' + str(len(List.sorts)))
+                    print('len(List.next) = ' + str(len(List.next)))
+                    searches = []
+                    categories = []
+                    sorts = []
+                    next = []
+                    for (site, item) in self.sites:
+                        self.items.extend(site.items)
+                        if site.searches:
+                            searches.extend(site.searches)
+                        if site.categories:
+                            categories.extend(site.categories)
+                        if site.sorts:
+                            sorts.extend(site.sorts)
+                        if site.next:
+                            next.extend(site.next)
+                    print('len(site.items) = ' + str(len(site.items)))
+                    print('len(searches) = ' + str(len(searches)))
+                    print('len(categories) = ' + str(len(categories)))
+                    print('len(sorts) = ' + str(len(sorts)))
+                    print('len(next) = ' + str(len(next)))
+
+                    # Create search item
+                    if len(searches) > 0:
+                        xbmc.log('Creating search item')
+                        tmp = CListItem()
+                        tmp.infos_dict = searchesDict
+                        tmp.merge(lItem)
+                        self.items.append(tmp.infos_dict)
+                        if not os.path.exists(os.path.join(cacheDir, u'Search.directory')):
+                            self.saveList(cacheDir, u'Search.directory', searches, Listname = 'Search List')
+                        xbmc.log('search item created')
+
+                    # Create Category item
+                    if len(categories) > 0:
+                        xbmc.log('Creating Category item')
+                        tmp = CListItem()
+                        tmp.infos_dict = categoriesDict
+                        tmp.merge(lItem)
+                        self.items.append(tmp.infos_dict)
+                        if not os.path.exists(os.path.join(cacheDir, u'Categories.directory')):
+                            self.saveList(cacheDir, u'Categories.directory', categories, Listname = 'Categories')
+                        xbmc.log('Category item created')
+
+                    # Create sorting item
+                    if len(sorts) > 0:
+                        xbmc.log('Creating sorting item')
+                        tmp = CListItem()
+                        tmp.infos_dict = sortsDict
+                        tmp.merge(lItem)
+                        self.items.append(tmp.infos_dict)
+                        self.saveList(cacheDir, u'Sorting.directory', sorts, Listname = 'Sorting')
+                        xbmc.log('Sorting item created')
+
+                    # Create next item
+                    if len(next) > 0:
+                        xbmc.log('Creating next item')
+                        tmp = CListItem()
+                        tmp.infos_dict = nextDict
+                        tmp.merge(lItem)
+                        self.items.append(tmp.infos_dict)
+                        self.saveList(cacheDir, u'Next_Pages.directory', next, Listname = 'Next Pages')
+                        xbmc.log('Next item created')
+
+        return 0, lItem
 
     def loadLocal(self, filename, lItem = None, firstPage = True):
-        key, value = smart_read_file(filename)
-        if not key and value:
-            return -1
-        site_tmp = CRuleSite()
-        site_tmp.cfg = filename
-        if self.getFileExtension(site_tmp.cfg) == u'cfg' and lItem != None:
+        site = CRuleSite()
+        key, value, site.status['file'] = smart_read_file(filename)
+        if key == None and value == None:
+            return None
+        site.cfg = filename
+        if self.getFileExtension(site.cfg) == u'cfg' and lItem != None:
             if u'cfg' not in lItem:
-                lItem[u'cfg'] = site_tmp.cfg
+                lItem[u'cfg'] = site.cfg
         tmp = None
         line = 0
         length = len(key) - 1
         breaker = -10
         if key[line] == u'start':
-            site_tmp.start = value[line]
+            site.start = value[line]
             line += 1
         if key[line] == u'header':
             index = value[line].find(u'|')
-            site_tmp.txheaders[value[line][:index]] = value[line][index+1:]
+            site.txheaders[value[line][:index]] = value[line][index+1:]
             line += 1
         if key[line] == u'sort':
             self.sort.append(value[line])
@@ -843,18 +939,18 @@ class CCurrentList:
                     f = open(str(os.path.join(resDir, skill_file)), 'r')
                     forward_cfg = f.read()
                     f.close()
-                    if forward_cfg != site_tmp.cfg:
+                    if forward_cfg != site.cfg:
                         return self.loadLocal(forward_cfg, lItem)
-                    return 0
+                    return site
                 except:
                     pass
             elif self.skill.find(u'store') != -1:
                 f = open(str(os.path.join(resDir, skill_file)), 'w')
-                f.write(site_tmp.cfg)
+                f.write(site.cfg)
                 f.close()
             line += 1
         if key[line] == u'startRE':
-            site_tmp.startRE = value[line]
+            site.startRE = value[line]
             line += 1
         while line < length:
             breaker += 1
@@ -876,6 +972,9 @@ class CCurrentList:
                 if key[line] == u'item_curr':
                     rule_tmp.curr = value[line]
                     line += 1
+                if key[line] == u'item_type':
+                    rule_tmp.type = value[line]
+                    line += 1
                 while key[line].startswith(u'item_info_'):
                     breaker += 1
                     if key[line] == u'item_info_name':
@@ -893,11 +992,6 @@ class CCurrentList:
                         line += 1
                     if key[line] == u'item_info_build':
                         info_tmp.build = value[line]
-                        if rule_tmp.skill.find(u'directory') != -1:
-                            if info_tmp.name == u'title':
-                                rule_tmp.dtitle = value[line]
-                            elif info_tmp.name == u'icon':
-                                rule_tmp.dicon = value[line]
                         rule_tmp.info_list.append(info_tmp)
                         line += 1
                     if line == length or breaker == length:
@@ -906,8 +1000,12 @@ class CCurrentList:
                     rule_tmp.actions = value[line].split(u'|') or [value[line]]
                     line += 1
                 if key[line] == u'item_url_build':
-                    rule_tmp.url_build = value[line]
-                    site_tmp.rules.append(rule_tmp)
+                    if lItem[u'type'] == u'rss':
+                            rule_tmp.url_build = value[line]
+                            site.rules.append(rule_tmp)
+                    elif rule_tmp.type == lItem[u'type']:
+                        rule_tmp.url_build = value[line]
+                        site.rules.append(rule_tmp)
                     line += 1
             if line >= length or breaker == length:
                 break
@@ -919,9 +1017,6 @@ class CCurrentList:
                     line += 1
                 while line < length and key[line] != u'url':
                     if tmp:
-                        if key[line] == u'type' and value[line] == u'once':
-                            if firstPage:
-                                value[line] = u'rss'
                         tmp.infos_dict[key[line]] = value[line]
                         line += 1
                     else:
@@ -930,171 +1025,182 @@ class CCurrentList:
                     tmp.infos_dict[u'url'] = value[line]
                     if lItem != None:
                         tmp.merge(lItem)
-                    if u'type' not in tmp.infos_dict:
-                        tmp.infos_dict[u'type'] = u'rss'
-                        self.items.append(tmp.infos_dict)
-                    elif tmp.infos_dict[u'type'] == u'search':
-                        self.searchList.append(tmp.infos_dict)
-                    elif tmp.infos_dict[u'type'] == u'category':
-                        tmp.infos_dict[u'type'] = u'link'
-                        self.categoryList.append(tmp.infos_dict)
-                    elif tmp.infos_dict[u'type'] == u'sort':
-                        self.sortList.append(tmp.infos_dict)
+#                    print('lItem[u\'mode\'] 1= ' + lItem[u'mode'])
+                    if lItem[u'mode'] == u'startView':
+                        tmp.infos_dict[u'mode'] = u'view'
+                        site.items.append(tmp.infos_dict)
+                    elif lItem[u'mode'] == u'view':
+                        if lItem[u'type'] == u'directory':
+                            tmp.infos_dict[u'type'] = u'rss'
+                            site.items.append(tmp.infos_dict)
+                        elif lItem[u'type'] == u'rss':
+                            site.items.append(tmp.infos_dict)
                     else:
-                        self.items.append(tmp.infos_dict)
+#                        tmp.infos_dict[u'mode'] = u'viewAll'
+#                        print('lItem[u\'type\'] = ' + lItem[u'type'])
+#                        print('tmp.infos_dict[u\'type\'] = ' + tmp.infos_dict[u'type'])
+                        if lItem[u'type'] == u'directory':
+                            site.items.append(tmp.infos_dict)
+                        elif tmp.infos_dict[u'type'] == u'search':
+                            site.searches.append(tmp.infos_dict)
+                        elif tmp.infos_dict[u'type'] == u'category':
+                            if lItem[u'type'] != u'directory':
+                                tmp.infos_dict[u'type'] = u'rss'
+                            site.categories.append(tmp.infos_dict)
+                        elif tmp.infos_dict[u'type'] == u'rss':
+                            site.items.append(tmp.infos_dict)
                     tmp = None
                     line += 1
                 if line >= length or breaker == length:
                     break
-        self.sites.append(site_tmp)
-        return 0
+        if breaker == length:
+            site.status['syntax'] = 'Cfg syntax is invalid.\nKey error in line %s' % str(line)
+        else:
+            site.status['syntax'] = 'Cfg syntax is valid'
+        return site
 
     def loadRemote(self, site, lItem):
-        url = site.start
 
         try:
             if enable_debug:
                 f = open(os.path.join(cacheDir, site.cfg + u'.page.html'), 'w')
-                f.write(u'<Title>'+ url + u'</Title>\n\n')
-            req = Request(url, None, site.txheaders)
+                f.write(u'<Title>'+ site.start + u'</Title>\n\n')
+            req = Request(site.start, None, site.txheaders)
             try:
                 handle = urlopen(req)
+                site.status['web_request'] = 'Successfully opened %s' % site.start
             except:
+                site.status['web_request'] = 'Failed to open "%s"\r\nUrl is invalid' % site.start
                 if enable_debug:
-                    xbmc.log('site cfg = ' + site.cfg)
-                    xbmc.log('url = ' + url)
                     traceback.print_exc(file = sys.stdout)
                 return
             site.data = handle.read()
             cj.save(os.path.join(settingsDir, 'cookies.lwp'))
+            site.status['web_response'] = 'Successfully fetched'
             if enable_debug:
                 f.write(site.data)
                 f.close()
         except IOError:
+            site.status['web_response'] = 'Failed to receive a response'
             if enable_debug:
                 traceback.print_exc(file = sys.stdout)
-            return -1
-            
-        data = site.data
+            return
 
         # Parser HTML site
-        self.remoteLoops(site, url, site.rules, data, lItem)
-
-        # Remove Duplicate items
-        tmpUrl = []
-        tmpItems = []
-        for item in self.items:
-            if not item[u'url'] in tmpUrl:
-                tmpUrl.append(item[u'url'])
-                tmpItems.append(item)
-        self.items = tmpItems
-
-        return 0
+        self.remoteLoops(site, site.start, site.rules, site.data, lItem)
+        return
 
     def loadCatcher(self, title):
-        key, value = smart_read_file(title)
-        self.catcher[:] = []
+        catcher_list = CCatcherList()
+        key, value, catcher_list.status['file'] = smart_read_file(title)
         line = 0
         length = len(key)
+        breaker = -10
         if key[line] == u'player':
             self.player = value[line]
             line += 1
-        while line < length and key[line]:
-            print('key = ' + key[line])
+        while line < length:
+            breaker += 1
             if key[line] == u'url':
-                catcher_tmp = CCatcherItem()
-                catcher_tmp.url = value[line]
+                site_rule = CCatcherRuleSite()
+                site_rule.url = value[line]
                 line += 1
             if key[line] == u'data':
-                catcher_tmp.data = value[line]
+                site_rule.data = value[line]
                 line += 1
             if key[line] == u'header':
                 index = value[line].find(u'|')
-                catcher_tmp.txheaders[value[line][:index]] = value[line][index+1:]
+                site_rule.txheaders[value[line][:index]] = value[line][index+1:]
                 line += 1
             if key[line] == u'limit':
-                catcher_tmp.limit = int(value[line])
+                site_rule.limit = int(value[line])
                 line += 1
             while line < length:
-                print('key = ' + key[line])
+                breaker += 1
                 if key[line] == u'target':
-                    rule_tmp = CCatcherRuleItem()
-                    rule_tmp.target = value[line]
+                    item_rule = CCatcherRuleItem()
+                    item_rule.target = value[line]
                     line += 1
                 if key[line] == u'quality':
-                    rule_tmp.quality = value[line]
-                    catcher_tmp.rules.append(rule_tmp)
+                    item_rule.quality = value[line]
+                    site_rule.rules.append(item_rule)
                     line += 1
                     continue
                 if key[line] == u'build':
-                    rule_tmp.build = value[line]
-                    self.catcher.append(catcher_tmp)
+                    item_rule.build = value[line]
+                    catcher_list.sites.append(site_rule)
                     line += 1
                     break
                 if key[line] == u'forward':
-                    rule_tmp.forward = value[line]
-                    catcher_tmp.rules.append(rule_tmp)
-                    self.catcher.append(catcher_tmp)
+                    item_rule.forward = value[line]
+                    site_rule.rules.append(item_rule)
+                    catcher_list.sites.append(site_rule)
                     line += 1
                     break
                 while key[line] != u'quality' and key[line] != u'forward':
-                    print('key = ' + key[line])
+                    breaker += 1
                     if key[line] == u'actions':
                         if value[line].find(u'|'):
-                            rule_tmp.actions = value[line].split(u'|')
+                            item_rule.actions = value[line].split(u'|')
                         else:
-                            rule_tmp.actions.append(value[line])
+                            item_rule.actions.append(value[line])
                         line += 1
                     if key[line] == u'dkey':
-                        rule_tmp.dkey = value[line]
+                        item_rule.dkey = value[line]
                         line += 1
                         if key[line] == u'dkey_actions':
                             if value[line].find(u'|'):
-                                rule_tmp.dkey_actions = value[line].split(u'|')
+                                item_rule.dkey_actions = value[line].split(u'|')
                             else:
-                                rule_tmp.dkey_actions.append(value[line])
+                                item_rule.dkey_actions.append(value[line])
                             line += 1
                     if key[line] == u'extension':
-                        rule_tmp.extension = value[line]
+                        item_rule.extension = value[line]
                         line += 1
                     if key[line] == u'info':
-                        rule_tmp.info = value[line]
+                        item_rule.info = value[line]
                         line += 1
-                    if line == length:
+                    if line >= length or breaker == length:
                         break
-        return -1
+                if breaker == length:
+                    break
+            if breaker == length:
+                break
+        if breaker == length:
+            catcher_list.status['syntax'] = 'Cfg syntax is invalid.\nKey error in line %s' % str(line)
+        else:
+            catcher_list.status['syntax'] = 'Cfg syntax is valid'
+        return catcher_list
 
     def getDirectLink(self, url, lItem):
-        for catcher in self.catcher:
-            print('url = ' + url)
+        for site in self.catcher.sites:
             # Download website
-            if catcher.data == '':
-                if catcher.url.find(u'%') != -1:
-                    url = catcher.url % url
-                req = Request(url, None, catcher.txheaders)
+            if site.data == '':
+                if site.url.find(u'%') != -1:
+                    url = site.url % url
+                req = Request(url, None, site.txheaders)
                 urlfile = opener.open(req)
-                if catcher.limit == 0:
+                if site.limit == 0:
                     data = urlfile.read()
                 else:
-                    data = urlfile.read(catcher.limit)
+                    data = urlfile.read(site.limit)
             else:
-                data_url = catcher.data % url
-                req = Request(catcher.url, data_url, catcher.txheaders)
+                data_url = site.data % url
+                req = Request(site.url, data_url, site.txheaders)
                 response = urlopen(req)
-                if catcher.limit == 0:
+                if site.limit == 0:
                     data = response.read()
                 else:
-                    data = response.read(catcher.limit)
+                    data = response.read(site.limit)
             if enable_debug:
-                f = open(os.path.join(cacheDir, 'catcher.html'), 'w')
+                f = open(os.path.join(cacheDir, 'site.html'), 'w')
                 f.write(u'<Titel>'+ url + u'</Title>\n\n')
                 f.write(data)
                 f.close()
 
-            url = self.remoteLoops(catcher, url, catcher.rules, data, lItem)
+            url = self.remoteLoops(site, url, site.rules, data, lItem)
 
         link = self.selectLink()
-        print('link = ' + link)
         return link
 
     # Parsing loops for loadRemote and getDirectlink
@@ -1108,16 +1214,15 @@ class CCurrentList:
 
         for item_rule in rules:
             if lItem[u'type'] == u'video':
-                item_rule.pattern1 = item_rule.target
+                item_rule.pattern1 = item_rule.target.encode('utf-8')
                 if item_rule.dkey:
-                    item_rule.pattern2 = item_rule.dkey
+                    item_rule.pattern2 = item_rule.dkey.encode('utf-8')
             else:
-                item_rule.pattern1 = item_rule.infos
+                item_rule.pattern1 = item_rule.infos.encode('utf-8')
                 if item_rule.curr:
-                    item_rule.pattern2 = item_rule.curr
+                    item_rule.pattern2 = item_rule.curr.encode('utf-8')
             match = interestRE.match(item_rule.pattern1)
             if match:
-                item_rule.pattern1 = item_rule.pattern1[match.end():]
                 interests.append(match.group(0))
             else:
                 print('RE pattern in ' +
@@ -1142,14 +1247,19 @@ class CCurrentList:
 
         # Remove longer matches that may cause the while loop to shorter matches
         # i.e. remove '<img src' if '<img' is in the list
+#        print('interests2 = ' + str(interests2))
         interesting_items = self.listFormatter(interests2)
+#        print('interesting_items = ' + str(interesting_items))
 
         # Create interestingRE from interesting_items list
-        interesting_pattern = u'(' + u'|'.join(interesting_items) + u')'
+        interesting_pattern = '(' + '|'.join(interesting_items) + ')'
         interestingRE = re.compile(interesting_pattern, re.IGNORECASE + re.DOTALL + re.MULTILINE)
 
         # Create REs for while loop
         for item_rule in rules:
+            match = interestingRE.match(item_rule.pattern1)
+            if match:
+                item_rule.pattern1 = item_rule.pattern1[match.end():]
             item_rule.pattern1RE = re.compile(item_rule.pattern1, re.IGNORECASE + re.DOTALL + re.MULTILINE)
             if item_rule.pattern2:
                 item_rule.pattern2RE = re.compile(item_rule.pattern2, re.IGNORECASE + re.DOTALL + re.MULTILINE)
@@ -1158,31 +1268,41 @@ class CCurrentList:
         if site.startRE:
             point = data.find(site.startRE.encode('utf-8'))
             if point == -1:
+                print('startRe not found for %s' % site.cfg)
                 point = 0
         else:
             point = 0
 
         length = len(data)
-
+#        print('start point = ' + str(point))
+#        print('start point datachunk = ' + data[point:point + 100])
         while point < length:
             interest = interestingRE.search(data, point)
             if interest:
                 point = interest.start()
                 intersting_point = interest.start()
                 jump = len(interest.group(0))
+#                print('point of interest = ' + str(point))
+#                print('interesting point found = ' + interest.group(0))
                 for index, rule_name in enumerate(interests):
                     item_rule = rules[index]
                     if rule_name.startswith(interest.group(0)):
+#                        print('rule_name = ' + rule_name)
+#                        print('datachunk = ' + data[point:point + 25])
+#                        print('trying to match at datachunk = ' + data[point + jump:point + jump + 25])
+#                        print('With rule pattern = ' + item_rule.pattern1)
                         match = item_rule.pattern1RE.match(data, point + jump)
                         if match:
+#                            print('match found')
                             while match:
+#                                print('match found = ' + match.group(0))
                                 if not match.group(0):
                                     break
                                 point += jump + len(match.group(0))
                                 if lItem[u'type'] == u'video':
                                     url, point = self.saveLink(item_rule, url, match, point, length)
                                 else:
-                                    self.itemBuilder(item_rule, lItem, url, match)
+                                    self.itemBuilder(site, item_rule, lItem, url, match)
                                 match = item_rule.pattern1RE.match(data, point + jump)
                             break
                     elif item_rule.pattern2 and item_rule.pattern2.startswith(interest.group(0)):
@@ -1205,9 +1325,30 @@ class CCurrentList:
 
     # Helper Functions for Function loadRemote
 
-    def itemBuilder(self, rule, lItem, url, match):
+    def itemBuilder(self, site, rule, lItem, url, match):
         tmp = CListItem()
         tmp.infos_dict = self.loadDict(tmp.infos_dict, rule, url, match)
+        tmp.infos_dict[u'type'] = rule.type
+        if tmp.infos_dict[u'type'] == u'category':
+            for item in site.categories:
+                if tmp.infos_dict[u'url'] == item['url']:
+                    tmp = None
+                    return
+        elif tmp.infos_dict[u'type'] == u'next':
+            for item in site.next:
+                if tmp.infos_dict[u'url'] == item['url']:
+                    tmp = None
+                    return
+        elif tmp.infos_dict[u'type'] == u'sort':
+            for item in site.sorts:
+                if tmp.infos_dict[u'url'] == item['url']:
+                    tmp = None
+                    return
+        else:
+            for item in site.items:
+                if tmp.infos_dict[u'url'] == item['url']:
+                    tmp = None
+                    return
         tmp.infos_dict = self.infoFormatter(tmp.infos_dict)
         try:
             if rule.skill.find(u'space') != -1:
@@ -1216,23 +1357,55 @@ class CCurrentList:
                 tmp.infos_dict[u'title'] = tmp.infos_dict[u'title'].strip()
         except:
             pass
-        tmp.merge(lItem)
         if rule.skill.find(u'recursive') != -1:
+            tmp.merge(lItem)
             self.loadRemote(tmp.infos_dict[u'url'], False, tmp.infos_dict)
             tmp = None
-        else:
-            if rule.skill.find(u'category') != -1:
-                self.categoryList.append(tmp.infos_dict)
-            elif rule.skill.find(u'next') != -1:
-                self.nextList.append(tmp.infos_dict)
-            elif rule.skill.find(u'sort') != -1:
-                self.sortList.append(tmp.infos_dict)
+        elif lItem[u'mode'] == u'view':
+#            print('lItem[u\'mode\'] = ' + lItem[u'mode'])
+#            print('lItem[u\'type\'] = ' + lItem[u'type'])
+            if lItem[u'type'] != u'rss':
+                tmp.infos_dict[u'type'] = u'rss'
+                tmp.merge(lItem)
+                site.items.append(tmp.infos_dict)
+            elif u'type' in tmp.infos_dict:
+                if tmp.infos_dict[u'type'] == u'next':
+                    tmp.infos_dict[u'type'] = u'rss'
+                    tmp.merge(lItem)
+                    site.next.append(tmp.infos_dict)
+                elif tmp.infos_dict[u'type'] == u'sort':
+                    tmp.merge(lItem)
+                    site.sorts.append(tmp.infos_dict)
+                elif tmp.infos_dict[u'type'] == u'category':
+                    tmp.merge(lItem)
+                    site.categories.append(tmp.infos_dict)
+                elif tmp.infos_dict[u'type'] == u'video':
+                    tmp.merge(lItem)
+                    site.items.append(tmp.infos_dict)
             elif rule.skill.find(u'directory') != -1:
-                rule = self.dirsBuilder(tmp.infos_dict, rule)
-            else:
+                tmp.merge(lItem)
                 if u'type' not in tmp.infos_dict:
                     tmp.infos_dict[u'type'] = u'rss'
-                self.items.append(tmp.infos_dict)
+                    site.items.append(tmp.infos_dict)
+
+        elif lItem[u'mode'] == u'viewAll':
+            if lItem[u'type'] == u'directory':
+                tmp.merge(lItem)
+                site.items.append(tmp.infos_dict)
+            elif u'type' in tmp.infos_dict:
+                if tmp.infos_dict[u'type'] == u'category':
+                    tmp.merge(lItem)
+                    site.categories.append(tmp.infos_dict)
+                elif tmp.infos_dict[u'type'] == u'next':
+                    tmp.infos_dict[u'type'] = u'rss'
+                    tmp.merge(lItem)
+                    site.next.append(tmp.infos_dict)
+                elif tmp.infos_dict[u'type'] == u'sort':
+                    tmp.merge(lItem)
+                    site.sorts.append(tmp.infos_dict)
+                elif tmp.infos_dict[u'type'] == u'video':
+                    tmp.merge(lItem)
+                    site.items.append(tmp.infos_dict)
         return
 
     def loadDict(self, item, rule, url, match):
@@ -1249,7 +1422,7 @@ class CCurrentList:
                 if info.build.find(u'%s') != -1:
                     item[info.name] = info.build % item[info.name]
                 continue
-            if info.rule != '':
+            if info.rule != u'':
                 info_rule = info.rule
                 if info.rule.find(u'%s') != -1:
                     src = item[info.src]
@@ -1277,54 +1450,58 @@ class CCurrentList:
         keep = {}
         for info_name, info_value in item.iteritems():
             if info_name == u'title':
-                try:
-                    info_value = info_value.replace(u'\r\n', u'').replace(u'\n', u'').replace(u'\t', u'')
-                    info_value = u' ' + info_value.strip() + u' '
-                except:
-                    info_value = u'...'
-                keep[info_name] = info_value
+                if info_value != u'':
+                    try:
+                        info_value = info_value.replace(u'\r\n', u'').replace(u'\n', u'').replace(u'\t', u'')
+                        info_value = info_value.lstrip(u' -!@#$%^&*_-+=.,)\'<>;:"[{]}\|/?`~')
+                        info_value = info_value.rstrip(u' -@#$%^&*_-+=.,<>;(:\'"[{]}\|/?`~')
+                        info_value = info_value.split(' ')
+                        title = []
+                        for word in info_value:
+                            if word:
+                                word = word.lower().capitalize()
+                            title.append(word)
+                        info_value = u' '.join(title).replace(u'  ', u' ')
+                        info_value = u' ' + info_value + u' '
+                    except:
+                        info_value = u' ... '
+                else:
+                    info_value = u' ... '
+            elif info_name == u'duration':
+                if info_value[-2] == u';':
+                    info_value = info_value.insert(-1, 0)
             elif info_name == u'icon':
                 if info_value == u'':
                     info_value = os.path.join(imgDir, u'video.png')
-                keep[info_name] = info_value
-            elif len(info_value) == 0:
-                info_value = u'...'
-                keep[info_name] = info_value
             elif info_name.rfind(u'.tmp') != -1:
                 continue
-            else:
-                keep[info_name] = info_value
+            keep[info_name] = info_value
+        
         return keep
 
     def currBuilder(self, rule, lItem, url, match):
-        title = match.group(1).strip()
-        tmp = CListItem()
-        if rule.skill.find(u'space') != -1:
-            tmp.infos_dict[u'title'] = u'   ' + title + u' (' + __language__(30106) + u')   '
-        else:
-            tmp.infos_dict[u'title'] = u'  ' + title + u' (' + __language__(30106) + u')  '
-        tmp.infos_dict[u'url'] = url
-        tmp.merge(lItem)
-        if rule.skill.find(u'directory') != -1:
-            rule = self.dirsBuilder(tmp.infos_dict, rule)
-        else:
-            if u'type' not in tmp.infos_dict:
-                tmp.infos_dict[u'type'] = u'rss'
-            self.items.append(tmp.infos_dict)
+        if lItem[u'mode'] == u'view':
+            title = clean_safe(match.group(1).strip())
+            tmp = CListItem()
+            if rule.skill.find(u'space') != -1:
+                tmp.infos_dict[u'title'] = u'   ' + title + u' (' + __language__(30106) + u')   '
+            else:
+                tmp.infos_dict[u'title'] = u'  ' + title + u' (' + __language__(30106) + u')  '
+            tmp.infos_dict[u'url'] = url
+            tmp.merge(lItem)
+            if u'type' in tmp.infos_dict:
+                if tmp.infos_dict[u'type'] == u'sort':
+                    tmp.merge(lItem)
+                    site.sorts.append(tmp.infos_dict)
+                elif tmp.infos_dict[u'type'] == u'category':
+                    tmp.merge(lItem)
+                    site.categories.append(tmp.infos_dict)
+            elif rule.skill.find(u'directory') != -1:
+                tmp.merge(lItem)
+                if u'type' not in tmp.infos_dict:
+                    tmp.infos_dict[u'type'] = u'rss'
+                site.items.append(tmp.infos_dict)
         return
-
-    def dirsBuilder(self, item, rule):
-        dir = (rule.dtitle, rule.dicon)
-        if dir in self.dirs:
-            for dir_name, dir_value in self.dirs.iteritems():
-                if dir == dir_name:
-                    if item[u'title'] not in dir_value:
-                        dir_value[item[u'title']] = [item]
-                    else:
-                        dir_value[item[u'title']].append(item)
-        else:
-            self.dirs[dir] = {item[u'title']: [item]}
-        return rule
 
     # Helper functions for Function getDirectLink
 
@@ -1357,32 +1534,32 @@ class CCurrentList:
             2:[u'standard', u'low', u'high'], 
             3:[u'high', u'standard', u'low']
         }
-        if len(self.urlList) > 0:
-            if len(self.urlList) == 1:
-                self.videoExtension = '.' + self.extensionList[0]
-                if self.decryptList[0]:
-                    link = sesame.decrypt(self.urlList[0], self.dkey, 256)
+        if len(self.catcher.urlList) > 0:
+            if len(self.catcher.urlList) == 1:
+                self.videoExtension = '.' + self.catcher.extensionList[0]
+                if self.catcher.decryptList[0]:
+                    link = sesame.decrypt(self.catcher.urlList[0], self.catcher.dkey, 256)
                 else:
-                    link = self.urlList[0]
-                link = self.urlList[0]
+                    link = self.catcher.urlList[0]
+                link = self.catcher.urlList[0]
             elif int(addon.getSetting('video_type')) == 0:
                 dia = xbmcgui.Dialog()
-                selection = dia.select(__language__(30055), self.selectionList)
-                self.videoExtension = u'.' + self.extensionList[selection]
-                if self.decryptList[selection]:
-                    link = sesame.decrypt(self.urlList[selection], self.dkey, 256)
+                selection = dia.select(__language__(30055), self.catcher.selectionList)
+                self.videoExtension = u'.' + self.catcher.extensionList[selection]
+                if self.catcher.decryptList[selection]:
+                    link = sesame.decrypt(self.catcher.urlList[selection], self.catcher.dkey, 256)
                 else:
-                    link = self.urlList[selection]
+                    link = self.catcher.urlList[selection]
             else:
                 video_type = video_type[int(addon.getSetting('video_type'))]
                 for video_qual in video_type:
-                    for rule_name, rule_value in self.catcher.rules.iteritems():
+                    for rule_name, rule_value in self.catcher.sites.rules.iteritems():
                         item_rule = rule_value
                         if item_rule.quality == video_qual and item_rule.link != '':
                             self.videoExtension = u'.' + item_rule.extension
-                            if self.decryptList[index]:
+                            if self.catcher.decryptList[index]:
                                 try:
-                                    link = sesame.decrypt(item_rule.link, self.dkey, 256)
+                                    link = sesame.decrypt(item_rule.link, self.catcher.dkey, 256)
                                     log(link)
                                 except:
                                     log('Incorrect decryption key may have been supplied')
@@ -1398,17 +1575,17 @@ class CCurrentList:
             u'standard' : __language__(30057), 
             u'high' : __language__(30058)
         }
-        self.urlList.append(rule.link)
-        self.extensionList.append(rule.extension)
+        self.catcher.urlList.append(rule.link)
+        self.catcher.extensionList.append(rule.extension)
         if rule.quality != 'fallback':
             append = rule.info or rule.extension
-            self.selectionList.append(selList_type[rule.quality] + ' (' + append + ')')
-        self.decryptList.append(rule.dkey)
+            self.catcher.selectionList.append(selList_type[rule.quality] + u' (' + append + u')')
+        self.catcher.decryptList.append(rule.dkey)
 
     def dkeyBuilder(self, rule, url, match):
         link = match.group(1)
         link = {u'match' : link}
-        self.dkey = parseActions(link, rule.dkey_actions)[u'match']
+        self.catcher.dkey = parseActions(link, rule.dkey_actions)[u'match']
         return
 
     # Helper functions for the class
@@ -1437,41 +1614,6 @@ class CCurrentList:
         else:
             return ''
 
-    def videoCount(self):
-        count = 0
-        for item in self.items:
-            if item[u'type'] == u'video':
-                count = count +1
-        return count
-
-    def getVideo(self):
-        for item in self.items:
-            if item[u'type'] == u'video':
-                return item
-
-    def getItemFromList(self, listname, name):
-        self.loadLocal(listname, False)
-        for item in self.items:
-            if item[u'url'] == name:
-                return item
-        return None
-
-    def itemInLocalList(self, name):
-        for item in self.items:
-            if item[u'url'] == name:
-                return True
-        return False
-
-    def getItem(self, name):
-        item = None
-        for root, dirs, files in os.walk(resDir):
-            for listname in files:
-                if self.getFileExtension(listname) == u'list' and listname != 'catcher.list':
-                    item = self.getItemFromList(listname, name)
-                if item != None:
-                    return item
-        return None
-
     def addItem(self, name):
         item = self.getItem(name)
         del self.items[:]
@@ -1483,6 +1625,29 @@ class CCurrentList:
             self.items.append(item)
             self.saveList(resDir, 'entry.list', self.items, u'Added sites and live streams', {skill : remove})
         return
+
+    def getItem(self, name):
+        item = None
+        for root, dirs, files in os.walk(resDir):
+            for listname in files:
+                if self.getFileExtension(listname) == u'list' and listname != 'catcher.list':
+                    item = self.getItemFromList(listname, name)
+                if item != None:
+                    return item
+        return None
+
+    def itemInLocalList(self, name):
+        for item in self.items:
+            if item[u'url'] == name:
+                return True
+        return False
+
+    def getItemFromList(self, listname, name):
+        self.loadLocal(listname, False)
+        for item in self.items:
+            if item[u'url'] == name:
+                return item
+        return None
 
     def removeItem(self, name):
         item = self.getItemFromList('entry.list', name)
@@ -1536,11 +1701,12 @@ class CCurrentList:
                     list2.append(x)
         return list2
 
-    def createDict(self, List):
+    def createDirItems(self, List, lItem):
         keys = []
         finalDict = {}
         Dict = {}
         for item in List:
+            item[u'type'] = u'rss'
             keys.append(item[u'title'])
         for i in range(len(keys)):
             key = keys.pop().lower().strip()
@@ -1563,42 +1729,17 @@ class CCurrentList:
                             finalDict[key1] = Dict[key1]
                         finalDict[key1].extend(Dict[key2])
                         keys1.remove(key2)
-        return finalDict
 
-    def codeUrl(self, item, suffix = None):
-        # in Frodo url parameters need to be encoded
-        # ignore characters that can't be converted to ascii
-        def doubleQuote(s):
-            s = urllib.quote(s).replace('%', '%25')
-            return s
-
-        #this is added for handling the stupid &nbsp;
-        url = item[u'url'].replace(u'\xa0', u' ').encode('utf-8')
-        url = ''.join(['url%3A', doubleQuote(url)])
-        if suffix:
-            url = '.'.join([url, suffix])
-        for info_name, info_value in item.iteritems():
-            info_name = info_name.encode('utf-8')
-            info_value = info_value.encode('utf-8')
-            try:
-                if info_name.find('.once') == -1 and info_name != 'url':
-                    url = '%26'.join([url, '%3A'.join([info_name, doubleQuote(info_value)])])
-            except KeyError:
-                xbmc.log('Skipping %s probably has unicode' % info_value.encode('utf-8'))
-        return url.encode('utf-8')
-
-    def decodeUrl(self, url, url_type = u'rss'):
-        item = CListItem()
-        if url.find('%26') == -1:
-            item.infos_dict[u'url'] = urllib.unquote(url)
-        else:
-            for info_name_value in url.split('%26'):
-                info_name, info_value = info_name_value.split('%3a')
-                info_value = info_value.replace('%25', '%')
-                item.infos_dict[smart_unicode(info_name)] = smart_unicode(urllib.unquote(info_value))
-        if u'type' not in item.infos_dict:
-            item.infos_dict[u'type'] = url_type
-        return item.infos_dict
+        for item_title, item_value in finalDict.iteritems():
+            tmp = CListItem()
+            filename = clean_filename(lItem[u'url'][:-10] + u'.' + item_title.strip() + u'.list')
+            tmp.infos_dict[u'title'] = capitalize(item_title)
+            tmp.infos_dict[u'url'] = filename
+            tmp.infos_dict[u'type'] = u'rss'
+            tmp.merge(lItem)
+            self.items.append(tmp.infos_dict)
+            self.saveList(cacheDir, filename, item_value, Listname = item_title.strip())
+        return None
 
 class Main:
     def __init__(self):
@@ -1616,24 +1757,19 @@ class Main:
         if videoItem[u'url'] == '':
             return
         url = videoItem[u'url']
+        if u'icon' not in videoItem:
+            videoItem[u'icon'] = os.path.join(imgDir, 'video.png')
+        if u'title' not in videoItem:
+            videoItem[u'title'] = '...'
         try:
-            icon = videoItem[u'icon']
-        except:
-            icon = os.path.join(imgDir, 'video.png')
-        try:
-            title = videoItem[u'title']
-        except:
-            title = '...'
-        try:
-            urllib.urlretrieve(icon, os.path.join(cacheDir, 'thumb.tbn'))
-            icon = os.path.join(cacheDir, 'thumb.tbn')
+            urllib.urlretrieve(videoItem[u'icon'], os.path.join(cacheDir, 'thumb.tbn'))
+            videoItem[u'icon'] = os.path.join(cacheDir, 'thumb.tbn')
         except:
             if enable_debug:
                 traceback.print_exc(file = sys.stdout)
-            icon = os.path.join(imgDir, 'video.png')
-        flv_file = url
-        listitem = xbmcgui.ListItem(title, title, icon, icon)
-        listitem.setInfo('video', {'Title':title})
+            videoItem[u'icon'] = os.path.join(imgDir, 'video.png')
+        listitem = xbmcgui.ListItem(videoItem[u'title'], videoItem[u'title'], videoItem[u'icon'], videoItem[u'icon'])
+        listitem.setInfo('video', {'Title':videoItem[u'title']})
         for info_name, info_value in videoItem.iteritems():
             try:
                 listitem.setInfo(type = 'Video', infoLabels = {info_name: info_value})
@@ -1641,11 +1777,11 @@ class Main:
                 pass
         if self.currentlist.skill.find(u'nodownload') == -1:
             if addon.getSetting('download') == 'true':
-                flv_file = self.downloadMovie(url, title)
+                videoItem[u'url'] = self.downloadMovie(videoItem)
             elif addon.getSetting('download') == 'false' and addon.getSetting('download_ask') == 'true':
                 dia = xbmcgui.Dialog()
                 if dia.yesno('', __language__(30052)):
-                    flv_file = self.downloadMovie(url, title)
+                    videoItem[u'url'] = self.downloadMovie(videoItem)
 
         player_type = {
             0:xbmc.PLAYER_CORE_AUTO, 
@@ -1660,10 +1796,10 @@ class Main:
         elif self.currentlist.player == u'dvdplayer':
             player_type = xbmc.PLAYER_CORE_DVDPLAYER
 
-        xbmc.Player(player_type).play(str(flv_file), listitem)
+        xbmc.Player(player_type).play(str(videoItem[u'url']), listitem)
         xbmc.sleep(200)
 
-    def downloadMovie(self, url, title):
+    def downloadMovie(self, videoItem):
         download_path = addon.getSetting('download_path')
         if download_path == u'':
             try:
@@ -1674,11 +1810,11 @@ class Main:
             except:
                 pass
         tmp_file = tempfile.NamedTemporaryFile(suffix = self.currentlist.videoExtension, dir=download_path)
-        tmp_file = xbmc.makeLegalFilename(tmp_file.name)
-        vidfile = xbmc.makeLegalFilename(download_path + clean_filename(title) + self.currentlist.videoExtension)
+        tmp_file = clean_filename(tmp_file.name)
+        vidfile = clean_filename(download_path + clean_filename(videoItem[u'title']) + self.currentlist.videoExtension)
         self.pDialog = xbmcgui.DialogProgress()
         self.pDialog.create('VideoDevil', __language__(30050), __language__(30051))
-        urllib.urlretrieve(url, tmp_file, self.video_report_hook)
+        urllib.urlretrieve(videoItem[u'url'], tmp_file, self.video_report_hook)
         self.pDialog.close()
         if not os.path.exists(tmp_file):
             dialog = xbmcgui.Dialog()
@@ -1696,13 +1832,13 @@ class Main:
             raise KeyboardInterrupt
 
     def parseView(self, url):
-        result, lItem, ext = self.currentlist.parser(url)
+        lItem = self.decodeUrl(url)
+        result, lItem = self.currentlist.parser(lItem)
         if lItem[u'type'] == u'video':
-            if ext == u'videodevil':
-                result = self.playVideo(lItem)
-            else:
-                self.downloadMovie(lItem[u'url'], lItem[u'title'])
-                result = -2
+            result = self.playVideo(lItem)
+        elif lItem[u'type'] == u'download':
+            self.downloadMovie(lItem[u'url'], lItem[u'title'])
+            result = -2
         else:
             sort_dict = {
                 u'label' : xbmcplugin.SORT_METHOD_LABEL, 
@@ -1716,25 +1852,56 @@ class Main:
                 xbmcplugin.addSortMethod(handle = self.handle, sortMethod = sort_dict[sort_method])
 
             if self.currentlist.skill.find(u'play') != -1 and self.currentlist.videoCount() == 1:
-                url = self.currentlist.codeUrl(self.currentlist.getVideo(), 'videodevil')
-                result = self.parseView(url)
+                result = self.parseView(self.currentlist.getVideo())
             else:
                 lizItems = []
                 for m in self.currentlist.items:
-                    if u'type' not in m:
-                        m[u'type'] = u'rss'
-                    if m[u'type'] == u'video':
-                        lizItems.append(self.addListItem(self.currentlist.codeUrl(m, 'videodevil'), m))
-                    elif m[u'type'] != u'once':
-                        lizItems.append(self.addListItem(self.currentlist.codeUrl(m), m))
+                    if m[u'type'] != u'once':
+                        lizItems.append(self.addListItem(self.codeUrl(m), m))
                 xbmcplugin.addDirectoryItems(int(sys.argv[1]), lizItems, len(self.currentlist.items))
         return result
 
-    def addListItem(self, url, lItem):
+    def codeUrl(self, item):
+        # in Frodo url parameters need to be encoded
+        # ignore characters that can't be converted to ascii
+        def doubleQuote(s):
+            s = urllib.quote(s).replace('%', '%25')
+            return s
+
+        #this is added for handling the stupid &nbsp;
+        url = item[u'url'].replace(u'\xa0', u' ').encode('utf-8')
+        url = ''.join(['url%3a', doubleQuote(url)])
+
+        for info_name, info_value in item.iteritems():
+            if info_name != u'once' and info_name != u'url':
+                info_name = info_name.encode('utf-8')
+                info_value = info_value.encode('utf-8')
+                try:
+                        url = '%26'.join([url, '%3a'.join([info_name, doubleQuote(info_value)])])
+                except KeyError:
+                    xbmc.log('Skipping %s probably has unicode' % info_value.encode('utf-8'))
+        return url.encode('utf-8')
+
+    def decodeUrl(self, url):
+        item = CListItem()
+        if url.find('%26') == -1:
+            item.infos_dict[u'url'] = urllib.unquote(url)
+            item.infos_dict[u'type'] = u'rss'
+            item.infos_dict[u'mode'] = u'startView'
+        else:
+            for info_name_value in url.split('%26'):
+                info_name, info_value = info_name_value.split('%3a')
+                info_value = info_value.replace('%25', '%')
+                item.infos_dict[smart_unicode(info_name)] = smart_unicode(urllib.unquote(info_value))
+            if item.infos_dict[u'mode'] == u'startView':
+                item.infos_dict[u'mode'] = u'view'
+        return item.infos_dict
+
+    def addListItem(self, url, item):
         url = sys.argv[0] + '?url=' + url
-        liz = xbmcgui.ListItem(lItem[u'title'], lItem[u'title'], lItem[u'icon'], lItem[u'icon'])
-        if lItem[u'type'] == u'video' and self.currentlist.skill.find(u'nodownload') == -1:
-            action = 'XBMC.RunPlugin(%s.dwnlddevil)' % url[:-11]
+        liz = xbmcgui.ListItem(item[u'title'], item[u'title'], item[u'icon'], item[u'icon'])
+        if item[u'type'] == u'video' and self.currentlist.skill.find(u'nodownload') == -1:
+            action = 'XBMC.RunPlugin(%s)' % url.replace('type%3avideo', 'type%3adownload')
             try:
                 liz.addContextMenuItems([(__language__(30007), action)])
             except:
@@ -1751,22 +1918,23 @@ class Main:
                 liz.addContextMenuItems([(__language__(30011), action)])
             except:
                 pass
-        for info_name, info_value in lItem.iteritems():
-            if info_name.find(u'context.') != -1:
+        for info_name, info_value in item.iteritems():
+            if info_name.startswith(u'context.'):
                 try:
-                    cItem = lItem
+                    cItem = CListItem()
                     cItem[u'url'] = info_value
                     cItem[u'type'] = u'rss'
-                    action = 'XBMC.RunPlugin(%s)' % (sys.argv[0] + '?url=' + self.currentlist.codeUrl(cItem))
-                    liz.addContextMenuItems([(info_name[info_name.find(u'.') + 1:], action)])
+                    cItem.merge(item)
+                    action = 'XBMC.RunPlugin(%s)' % (sys.argv[0] + '?url=' + self.codeUrl(cItem))
+                    liz.addContextMenuItems([(info_name[8:], action)])
                 except:
                     pass
-            if info_name != u'url' and info_name != u'title' and info_name != u'icon' and info_name != u'type' and info_name != u'extension' and info_name.find(u'context.') == -1:
+            if info_name != u'url' and info_name != u'title' and info_name != u'icon' and info_name != u'type' and info_name != u'extension' and info_name.startswith(u'context.') == False:
                 try:
-                    if info_name.find(u'.int') != -1:
-                        liz.setInfo('Video', infoLabels = {capitalize(info_name[:info_name.find(u'.int')]): int(info_value)})
-                    elif info_name.find(u'.once') != -1:
-                        liz.setInfo('Video', infoLabels = {capitalize(info_name[:info_name.find(u'.once')]): info_value})
+                    if info_name.rfind(u'.int') != -1:
+                        liz.setInfo('Video', infoLabels = {capitalize(info_name[:-4]): int(info_value)})
+                    elif info_name.rfind(u'.once') != -1:
+                        liz.setInfo('Video', infoLabels = {capitalize(info_name[:-5]): info_value})
                     else:
                         liz.setInfo('Video', infoLabels = {capitalize(info_name): info_value})
                 except:
@@ -1784,6 +1952,7 @@ class Main:
         try:
             self.handle = int(sys.argv[1])
             paramstring = sys.argv[2]
+            print('len(paramstring) = ' + str( len(paramstring)))
             if len(paramstring) <= 2:
                 if addon.getSetting('hide_warning') == 'false':
                     dialog = xbmcgui.Dialog()
@@ -1807,13 +1976,17 @@ class Main:
                 log('Purging cache directory')
                 self.purgeCache()
                 log('Cache directory purged')
-                self.parseView( 'sites.list')
-                self.currentlist.items[:] = []
+                self.parseView('sites.list')
+#                if xbmcplugin.getSetting('custom_entry') == 'false':
+#                    self.parseView('sites.list')
+#                    del self.currentlist.items[:]
+#                self.parseView('entry.list')
                 xbmc.log('End of directory')
                 xbmcplugin.endOfDirectory(handle = int(sys.argv[1]))
             else:
                 params = sys.argv[2]
                 currentView = params[5:]
+                print('len(self.currentlist.sites) = ' + str(len(self.currentlist.sites)))
                 log(
                     'currentView: ' +
                      urllib2.unquote(repr(currentView)).replace(u'&', u'\n'))
