@@ -682,7 +682,7 @@ class CCurrentList:
             u'title': u'  ' + __language__(30102) + u'  ',
             u'icon': os.path.join(imgDir, u'search.png'),
             u'url': u'Search.directory',
-            u'type': u'directory'
+            u'type': u'search'
         }
         categoriesDict = {
             u'title': u'   ' + __language__(30100) + u'   ',
@@ -748,6 +748,9 @@ class CCurrentList:
             else:
                 if u'cfg' in lItem:
                     self.sites = self.loadLocal(lItem[u'cfg'], lItem)
+                    if lItem[u'type'] == u'search':
+                        search_phrase = self.getSearchPhrase()
+                        lItem[u'url'] = lItem[u'url'] % search_phrase
                     self.sites.start = lItem[u'url']
                 else:
                     self.sites = self.loadLocal(lItem[u'url'], lItem)
@@ -786,13 +789,18 @@ class CCurrentList:
                 self.items.extend(self.sites.next)
             self.items.extend(self.sites.items)
         elif lItem[u'mode'] == u'viewAll':
-
+            if lItem[u'type'] == u'search':
+                search_phrase = self.getSearchPhrase()
             #Loading temporary local file
             List = self.loadLocal(lItem[u'url'], lItem)
             if List == None:
                 return -2, lItem
 #            print('lItem = ' + str(lItem))
-#            print('len(List.items) = ' + str(len(List.items)))
+            print('len(List.items) = ' + str(len(List.items)))
+            print('len(List.searches) = ' + str(len(List.searches)))
+            print('len(List.categories) = ' + str(len(List.categories)))
+            print('len(List.sorts) = ' + str(len(List.sorts)))
+            print('len(List.next) = ' + str(len(List.next)))
 
             #Loading local files in the temporary local file
             for item in List.items:
@@ -801,16 +809,18 @@ class CCurrentList:
                 elif item[u'type'] == u'sort':
                     List.sorts.append(item)
                 elif item[u'type'] == u'rss' or item[u'type'] == u'search':
-#                    print(item)
+                    print(item)
                     if u'cfg' in item:
-                        site = self.loadLocal(item[u'cfg'], item)
                         if item[u'type'] == u'search':
-                            search_phrase = self.getSearchPhrase()
+                            item[u'type'] = u'rss'
                             item[u'url'] = item[u'url'] % search_phrase
+                        site = self.loadLocal(item[u'cfg'], item)
                         site.start = item[u'url']
                     else:
                         site = self.loadLocal(item[u'url'], item)
                     self.sites.append((site, item))
+                    print(item)
+                    print('\n')
 #                    print('item[u\'mode\'] 1= ' + item[u'mode'])
 
 #            print('len(self.sites) = ' + str(len(self.sites)))
@@ -849,52 +859,54 @@ class CCurrentList:
                     sorts = []
                     next = []
                     for (site, item) in self.sites:
-                        self.items.extend(site.items)
-                        if site.searches:
-                            searches.extend(site.searches)
-                        if site.categories:
-                            categories.extend(site.categories)
-                        if site.sorts:
-                            sorts.extend(site.sorts)
+                        if lItem[u'type'] != u'search':
+                            if site.searches:
+                                searches.extend(site.searches)
+                            if site.categories:
+                                categories.extend(site.categories)
+                            if site.sorts:
+                                sorts.extend(site.sorts)
                         if site.next:
                             next.extend(site.next)
+                        self.items.extend(site.items)
                     print('len(site.items) = ' + str(len(site.items)))
                     print('len(searches) = ' + str(len(searches)))
                     print('len(categories) = ' + str(len(categories)))
                     print('len(sorts) = ' + str(len(sorts)))
                     print('len(next) = ' + str(len(next)))
 
-                    # Create search item
-                    if len(searches) > 0:
-                        xbmc.log('Creating search item')
-                        tmp = CListItem()
-                        tmp.infos_dict = searchesDict
-                        tmp.merge(lItem)
-                        self.items.append(tmp.infos_dict)
-                        if not os.path.exists(os.path.join(cacheDir, u'Search.directory')):
-                            self.saveList(cacheDir, u'Search.directory', searches, Listname = 'Search List')
-                        xbmc.log('search item created')
+                    if lItem[u'type'] != u'search':
+                        # Create search item
+                        if len(searches) > 0:
+                            xbmc.log('Creating search item')
+                            tmp = CListItem()
+                            tmp.infos_dict = searchesDict
+                            tmp.merge(lItem)
+                            self.items.append(tmp.infos_dict)
+                            if not os.path.exists(os.path.join(cacheDir, u'Search.directory')):
+                                self.saveList(cacheDir, u'Search.directory', searches, Listname = 'Search List')
+                            xbmc.log('search item created')
 
-                    # Create Category item
-                    if len(categories) > 0:
-                        xbmc.log('Creating Category item')
-                        tmp = CListItem()
-                        tmp.infos_dict = categoriesDict
-                        tmp.merge(lItem)
-                        self.items.append(tmp.infos_dict)
-                        if not os.path.exists(os.path.join(cacheDir, u'Categories.directory')):
-                            self.saveList(cacheDir, u'Categories.directory', categories, Listname = 'Categories')
-                        xbmc.log('Category item created')
+                        # Create Category item
+                        if len(categories) > 0:
+                            xbmc.log('Creating Category item')
+                            tmp = CListItem()
+                            tmp.infos_dict = categoriesDict
+                            tmp.merge(lItem)
+                            self.items.append(tmp.infos_dict)
+                            if not os.path.exists(os.path.join(cacheDir, u'Categories.directory')):
+                                self.saveList(cacheDir, u'Categories.directory', categories, Listname = 'Categories')
+                            xbmc.log('Category item created')
 
-                    # Create sorting item
-                    if len(sorts) > 0:
-                        xbmc.log('Creating sorting item')
-                        tmp = CListItem()
-                        tmp.infos_dict = sortsDict
-                        tmp.merge(lItem)
-                        self.items.append(tmp.infos_dict)
-                        self.saveList(cacheDir, u'Sorting.directory', sorts, Listname = 'Sorting')
-                        xbmc.log('Sorting item created')
+                        # Create sorting item
+                        if len(sorts) > 0:
+                            xbmc.log('Creating sorting item')
+                            tmp = CListItem()
+                            tmp.infos_dict = sortsDict
+                            tmp.merge(lItem)
+                            self.items.append(tmp.infos_dict)
+                            self.saveList(cacheDir, u'Sorting.directory', sorts, Listname = 'Sorting')
+                            xbmc.log('Sorting item created')
 
                     # Create next item
                     if len(next) > 0:
@@ -908,15 +920,15 @@ class CCurrentList:
 
         return 0, lItem
 
-    def loadLocal(self, filename, lItem = None, firstPage = True):
+    def loadLocal(self, filename, lItem, firstPage = True):
         site = CRuleSite()
         key, value, site.status['file'] = smart_read_file(filename)
         if key == None and value == None:
             return None
         site.cfg = filename
-        if self.getFileExtension(site.cfg) == u'cfg' and lItem != None:
-            if u'cfg' not in lItem:
-                lItem[u'cfg'] = site.cfg
+        if u'cfg' not in lItem:
+            if self.getFileExtension(filename) == u'cfg':
+                lItem[u'cfg'] = filename
         tmp = None
         line = 0
         length = len(key) - 1
@@ -939,14 +951,14 @@ class CCurrentList:
                     f = open(str(os.path.join(resDir, skill_file)), 'r')
                     forward_cfg = f.read()
                     f.close()
-                    if forward_cfg != site.cfg:
+                    if forward_cfg != filename:
                         return self.loadLocal(forward_cfg, lItem)
                     return site
                 except:
                     pass
             elif self.skill.find(u'store') != -1:
                 f = open(str(os.path.join(resDir, skill_file)), 'w')
-                f.write(site.cfg)
+                f.write(filename)
                 f.close()
             line += 1
         if key[line] == u'startRE':
@@ -1000,7 +1012,7 @@ class CCurrentList:
                     rule_tmp.actions = value[line].split(u'|') or [value[line]]
                     line += 1
                 if key[line] == u'item_url_build':
-                    if lItem[u'type'] == u'rss':
+                    if lItem[u'type'] == u'rss' or lItem[u'type'] == u'search':
                             rule_tmp.url_build = value[line]
                             site.rules.append(rule_tmp)
                     elif rule_tmp.type == lItem[u'type']:
@@ -1041,13 +1053,15 @@ class CCurrentList:
 #                        print('tmp.infos_dict[u\'type\'] = ' + tmp.infos_dict[u'type'])
                         if lItem[u'type'] == u'directory':
                             site.items.append(tmp.infos_dict)
-                        elif tmp.infos_dict[u'type'] == u'search':
-                            site.searches.append(tmp.infos_dict)
-                        elif tmp.infos_dict[u'type'] == u'category':
-                            if lItem[u'type'] != u'directory':
+                        elif lItem[u'type'] == u'rss':
+                            if tmp.infos_dict[u'type'] == u'search':
+                                site.searches.append(tmp.infos_dict)
+                            elif tmp.infos_dict[u'type'] == u'category':
                                 tmp.infos_dict[u'type'] = u'rss'
-                            site.categories.append(tmp.infos_dict)
-                        elif tmp.infos_dict[u'type'] == u'rss':
+                                site.categories.append(tmp.infos_dict)
+                            elif tmp.infos_dict[u'type'] == u'rss':
+                                site.items.append(tmp.infos_dict)
+                        elif lItem[u'type'] == u'search':
                             site.items.append(tmp.infos_dict)
                     tmp = None
                     line += 1
@@ -1618,7 +1632,7 @@ class CCurrentList:
         item = self.getItem(name)
         del self.items[:]
         try:
-            self.loadLocal('entry.list', False)
+            self.loadLocal('entry.list')
         except:
             del self.items[:]
         if item and not self.itemInLocalList(name):
@@ -1643,7 +1657,7 @@ class CCurrentList:
         return False
 
     def getItemFromList(self, listname, name):
-        self.loadLocal(listname, False)
+        self.loadLocal(listname)
         for item in self.items:
             if item[u'url'] == name:
                 return item
