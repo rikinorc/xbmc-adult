@@ -2,6 +2,8 @@
 #                 Youporn VideoCatcher                 #
 ########################################################
 url=%s
+startRE=currentVideo
+########################################################
 target=var\s+encryptedQuality240URL\s+=\s+'([^']+)';
 dkey=video_title'\s+:\s+"([^"]+)",
 dkey_actions=replace(match, &amp;, &)|unquote(match)
@@ -19,5 +21,6 @@ dkey=video_title'\s+:\s+"([^"]+)",
 dkey_actions=replace(match, &amp;, &)|unquote(match)
 info=720p
 quality=high
+########################################################
 build=%s
 ########################################################

@@ -2,18 +2,20 @@
 #                Boysfood VideoCatcher                 #
 ########################################################
 url=%s
+########################################################
 target=href="([^"]+)"> mp4</a>
 extension=wmv
-quality=fallback
+quality=standard
 ########################################################
-target=file: '([^']+)'
+target=file: '(http[^']+)'
 extension=wmv
-quality=fallback
+quality=standard
 ########################################################
 target=<div id="xmoov-flv-player_va">\s+<iframe(?:[^"]+"){0,4}\s*src="([^"]+)"
 forward=True
 ########################################################
 url=%s
+########################################################
 target=file: '([^']+)'
 extension=wmv
 quality=fallback
@@ -53,6 +55,7 @@ actions=unquote(match)
 forward=True
 ########################################################
 url=%s
+########################################################
 target=srv': '([^']+)',\s+'file': '([^']+flv)',
 actions=join(/key=, match, group2)
 quality=standard
@@ -60,5 +63,6 @@ quality=standard
 target=file': '([^']+.flv[^']+)'
 actions=unquote(match)
 quality=standard
+########################################################
 build=%s
 ########################################################
