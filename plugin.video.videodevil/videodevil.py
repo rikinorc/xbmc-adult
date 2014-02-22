@@ -723,7 +723,7 @@ class CCatcherList:
             self.skill = embedded['skill']
             self.videoExtension = embedded['videoExtension']
             self.link = embedded['link']
-        if link:
+        if self.link:
             return self.link
         elif len(self.urlList) > 0:
             self.selectLink()
@@ -746,7 +746,7 @@ class CCatcherList:
             self.selectLink()
         else:
             return None
-        return ('status': self.status, 'player': self.player, 'skill': self.skill, 'videoExtension': self.videoExtension, 'link': self.link)
+        return {'status': self.status, 'player': self.player, 'skill': self.skill, 'videoExtension': self.videoExtension, 'link': self.link}
 
     def loadCatcher(self, title):
         key, value, self.status['file'] = smart_read_file(title)
