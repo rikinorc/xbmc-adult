@@ -4,55 +4,37 @@
 url=%s
 ########################################################
 target=href="([^"]+)"> mp4</a>
+actions=decode(match)
 extension=wmv
 quality=standard
+priority=1
 ########################################################
 target=file: '(http[^']+)'
 extension=wmv
 quality=standard
+priority=1
 ########################################################
 target=<div id="xmoov-flv-player_va">\s+<iframe(?:[^"]+"){0,4}\s*src="([^"]+)"
-forward=True
+priority=-1
+type=redirect
 ########################################################
 url=%s
 ########################################################
+# pornhost
 target=file: '([^']+)'
 extension=wmv
 quality=fallback
+priority=-1
 ########################################################
-target=flashvars.quality_180p = "([^"]+180p[^"]+mp4[^"]+)";\s+(?=flashvars.(?:r|quality_\d+p) = ")
+target=link_url":"(http%3A%2F%2Fwww.pornhub.com[^"]+)"
 actions=unquote(match)
-extension=mp4
-info=180p
-quality=low
-########################################################
-target=flashvars.quality_240p = "([^"]+240p[^"]+mp4[^"]+)";\s+(?=flashvars.(?:r|quality_\d+p) = ")
-actions=unquote(match)
-extension=mp4
-info=240p
-quality=low
-########################################################
-target=flashvars.quality_480p = "([^"]+480p[^"]+mp4[^"]+)";\s+(?=flashvars.(?:r|quality_\d+p) = ")
-actions=unquote(match)
-extension=mp4
-info=480p
-quality=standard
-########################################################
-target=flashvars.quality_720p = "([^"]+720p[^"]+mp4[^"]+)";\s+(?=flashvars.(?:r|quality_\d+p) = ")
-actions=unquote(match)
-extension=mp4
-info=720p
-quality=high
-########################################################
-target=flashvars.quality_1080p = "([^"]+1080p[^"]+mp4[^"]+)";\s+(?=flashvars.(?:r|quality_\d+p) = ")
-actions=unquote(match)
-extension=mp4
-info=1080p
-quality=high
+priority=-2
+type=forward
 ########################################################
 target=<param name="flashvars" value="main_url=([^&]+.html)%3Fembed%3Dview&
 actions=unquote(match)
-forward=True
+priority=-2
+type=redirect
 ########################################################
 url=%s
 ########################################################
@@ -63,6 +45,4 @@ quality=standard
 target=file': '([^']+.flv[^']+)'
 actions=unquote(match)
 quality=standard
-########################################################
-build=%s
 ########################################################

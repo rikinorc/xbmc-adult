@@ -4,7 +4,7 @@
 url=http://getvids.de/video.cgi
 data=downloadurl=%s
 header=Referer|http://getvids.de/video.cgi
+########################################################
 target=href="([^"]+)" title="Download">
 quality=standard
-build=%s
 ########################################################

@@ -2,8 +2,8 @@
 #                 Degrab VideoCatcher                  #
 ########################################################
 url=http://www.degrab.de/?url=%s
+########################################################
 target=Download Link.+?<a href="([^"]+)"
 actions=unquote(match)
 quality=standard
-build=%s
 ########################################################

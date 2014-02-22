@@ -354,7 +354,7 @@ def clean1(s): # remove &XXX;
     for name, value in entitydefs.iteritems():
         if u'&' in s:
             s = s.replace(u'&' + name + u';', value)
-    return s;
+    return s
 
 def clean2(s): # remove \\uXXX
     pat = re.compile(r'\\u(....)')
@@ -366,7 +366,7 @@ def clean3(s): # remove &#XXX;
     pat = re.compile(r'&#(\d+);')
     def sub(mo):
         return unichr(int(mo.group(1)))
-    return decode(pat.sub(sub, smart_unicode(s)))
+    return decode(decode(pat.sub(sub, smart_unicode(s)))) # Once in a while site triple their source
 
 def decode(s):
     if not s:
@@ -483,24 +483,14 @@ def smart_read_file(filename):
     f.close()
     return key, value, 'File Opened'
 
-'''
-                if item_rule.skill.find('append') != -1:
-                    if curr_url[len(curr_url) - 1] == '?':
-                        tmp.infos_values[info_idx] = curr_url + tmp.infos_values[info_idx]
-                    else:
-                        tmp.infos_values[info_idx] = curr_url + '&' + tmp.infos_values[info_idx]
-                if item_rule.skill.find('param') != -1:
-                    if curr_url.rfind('?') == -1:
-                        tmp.infos_values[info_idx] = curr_url + '?' + tmp.infos_values[info_idx]
-                    else:
-                        tmp.infos_values[info_idx] = curr_url[:curr_url.rfind('?')] + '?' + tmp.infos_values[info_idx]
-'''
-
 def parseActions(item, convActions, url = None):
+    print('item = ' + str(item))
     for convAction in convActions:
         if convAction.find(u"(") != -1:
             action = convAction[0:convAction.find(u"(")]
+            print('action = ' + action)
             param = convAction[len(action) + 1:-1]
+            print('param = ' + param)
             if param.find(u', ') != -1:
                 params = param.split(u', ')
                 if action == u'replace':
@@ -672,19 +662,15 @@ class CRuleItem:
 class CCatcherRuleItem:
     def __init__(self):
         self.target = ''
-        self.pattern1 = ''
-        self.pattern1RE = ''
         self.actions = []
         self.dkey = ''
-        self.pattern2 = ''
-        self.pattern2RE = ''
         self.dkey_action = []
         self.info = ''
         self.extension = u'flv'
         self.quality = u'standard'
         self.build = ''
-        self.forward = False
-        self.link = ''
+        self.type = u'video'
+        self.priority = 0
 
 class CRuleSite:
     def __init__(self):
@@ -707,7 +693,8 @@ class CRuleSite:
 class CCatcherRuleSite:
     def __init__(self):
         self.url = ''
-        self.startRE = ''
+        self.startRE = None
+        self.stopRE = None
         self.txheaders = {'User-Agent':USERAGENT}
         self.limit = 0
         self.data = ''
@@ -716,20 +703,311 @@ class CCatcherRuleSite:
 class CCatcherList:
     def __init__(self):
         self.status = {}
+        self.player = ''
+        self.skill = ''
         self.sites = []
         self.urlList = []
         self.extensionList = []
         self.selectionList = []
         self.decryptList = []
         self.videoExtension = u'.flv'
-        self.dkey = ''
+        self.dkey = None
+        self.link = None
+
+    def getDirectLink(self, lItem):
+        self.loadCatcher(lItem[u'catcher'])
+        embedded = self.parseVideoPage(lItem[u'url'])
+        if embedded:
+            self.status = embedded['status']
+            self.player = embedded['player']
+            self.skill = embedded['skill']
+            self.videoExtension = embedded['videoExtension']
+            self.link = embedded['link']
+        if link:
+            return self.link
+        elif len(self.urlList) > 0:
+            self.selectLink()
+        else:
+            tmp_catcher = CCatcherList()
+            lItem[u'catcher'] = u'simple-match'
+            tmp_attr = getEmbeddedLink(lItem)
+            if tmp_attr['link']:
+                self.status = embedded['status']
+                self.player = embedded['player']
+                self.skill = embedded['skill']
+                self.videoExtension = embedded['videoExtension']
+                self.link = embedded['link']
+        return self.link
+
+    def getEmbeddedLink(self, lItem):
+        self.loadCatcher(lItem[u'catcher'])
+        self.parseVideoPage(lItem[u'url'])
+        if len(self.urlList) > 0:
+            self.selectLink()
+        else:
+            return None
+        return ('status': self.status, 'player': self.player, 'skill': self.skill, 'videoExtension': self.videoExtension, 'link': self.link)
+
+    def loadCatcher(self, title):
+        key, value, self.status['file'] = smart_read_file(title)
+        line = 0
+        length = len(key)
+        breaker = -10
+        site = None
+        rule = None
+        if key[line] == u'player':
+            self.player = value[line]
+            line += 1
+        while line < length:
+            breaker += 1
+            if key[line] == u'url':
+                if site:
+                    self.sites.append(site)
+                site = CCatcherRuleSite()
+                site.url = value[line]
+                line += 1
+            if key[line] == u'data':
+                site.data = value[line]
+                line += 1
+            if key[line] == u'header':
+                index = value[line].find(u'|')
+                site.txheaders[value[line][:index]] = value[line][index+1:]
+                line += 1
+            if key[line] == u'limit':
+                site.limit = int(value[line])
+                line += 1
+            if key[line] == u'startRE':
+                site.startRE = value[line]
+                line += 1
+            if key[line] == u'stopRE':
+                site.stopRE = value[line]
+                line += 1
+            while line < length:
+                breaker += 1
+                if key[line] == u'target':
+                    if rule:
+                        site.rules.append(rule)
+                    rule = CCatcherRuleItem()
+                    rule.target = value[line]
+                    line += 1
+                if key[line] == u'quality':
+                    rule.quality = value[line]
+                    line += 1
+                    continue
+                if key[line] == u'priority':
+                    rule.priority = int(value[line])
+                    line += 1
+                    continue
+                if key[line] == u'type':
+                    rule.type = value[line]
+                    line += 1
+                    if rule.type == u'forward' or rule.type.startswith(u'redirect'):
+                        site.rules.append(rule)
+                        rule = None
+                        break
+                else:
+                    if key[line] == u'actions':
+                        if value[line].find(u'|'):
+                            rule.actions = value[line].split(u'|')
+                        else:
+                            rule.actions.append(value[line])
+                        line += 1
+                    if key[line] == u'dkey':
+                        rule.dkey = value[line]
+                        line += 1
+                        if key[line] == u'dkey_actions':
+                            if value[line].find(u'|'):
+                                rule.dkey_actions = value[line].split(u'|')
+                            else:
+                                rule.dkey_actions.append(value[line])
+                            line += 1
+                    if key[line] == u'extension':
+                        rule.extension = value[line]
+                        line += 1
+                    if key[line] == u'info':
+                        rule.info = value[line]
+                        line += 1
+                    if key[line] == u'build':
+                        rule.build = value[line]
+                        line += 1
+                if breaker == length:
+                    break
+            if breaker == length:
+                break
+        if rule != None:
+            site.rules.append(rule)
+        self.sites.append(site)
+        if breaker == length:
+            self.status['syntax'] = 'Cfg syntax is invalid.\nKey error in line %s' % str(line)
+        else:
+            self.status['syntax'] = 'Cfg syntax is valid'
+        return None
+
+    def parseVideoPage(self, url):
+        video_found = False
+        for index, site in enumerate(self.sites):
+            if video_found:
+                break
+            print('url = ' + url)
+            # Download website
+            if site.data == '':
+                if site.url.find(u'%') != -1:
+                    url = site.url % url
+                req = Request(url, None, site.txheaders)
+                urlfile = opener.open(req)
+                if site.limit == 0:
+                    data = urlfile.read()
+                else:
+                    data = urlfile.read(site.limit)
+            else:
+                data_url = site.data % url
+                req = Request(site.url, data_url, site.txheaders)
+                response = urlopen(req)
+                if site.limit == 0:
+                    data = response.read()
+                else:
+                    data = response.read(site.limit)
+            if enable_debug:
+                f = open(os.path.join(cacheDir, 'site.html'), 'w')
+                f.write(u'<Titel>'+ url + u'</Title>\n\n')
+                f.write(data)
+                f.close()
+
+            if site.startRE:
+                start = data.find(site.startRE.encode('utf-8'))
+                if start == -1:
+                    print('startRe not found for %s' % url)
+                else:
+                    data = data[start:]
+                    if site.stopRE:
+                        stop = data.find(site.stopRE.encode('utf-8'))
+                        if stop == -1:
+                            print('stopRe not found for %s' % url)
+                        else:
+                            data = data[:stop]
+
+            # If user setting is not set to "Ask me"
+            # Sort rules to parse in the order specified in the settings
+            # Parsing will continue until a match is found with rule.priority anything other than 0
+            if len(site.rules) > 1:
+                decorated1 = [(rule.priority, i, rule) for i, rule in enumerate(site.rules) if rule.priority < 0]
+                decorated1 = sorted(decorated1, reverse = True)
+                if int(addon.getSetting('video_type')) == 3:
+                    decorated = [(rule.priority, i, rule) for i, rule in enumerate(site.rules) if rule.priority >= 0]
+                    decorated = sorted(decorated)
+                    site.rules = [rule for priority, i, rule in decorated]
+                elif int(addon.getSetting('video_type')) == 2:
+                    decorated = [(rule.priority, i, rule) for i, rule in enumerate(site.rules) if rule.priority > 0]
+                    decorated = sorted(decorated)
+                    if len(decorated) % 2 == 0:
+                        decorated = decorated[len(decorated) // 2 - 1:] + list(reversed(decorated[:len(decorated) // 2 - 1]))
+                    else:
+                        decorated = decorated[len(decorated) // 2:] + list(reversed(decorated[:len(decorated) // 2]))
+                    site.rules = [rule for rule in site.rules if rule.priority == 0] + [rule for priority, i, rule in decorated]
+                elif int(addon.getSetting('video_type')) == 1:
+                    decorated = [(rule.priority, i, rule) for i, rule in enumerate(site.rules) if rule.priority > 0]
+                    decorated = sorted(decorated, reverse = True)
+                    site.rules = [rule for rule in site.rules if rule.priority == 0] + [rule for priority, i, rule in decorated]
+                site.rules += [rule for priority, i, rule in decorated1]
+
+#            print('self.sites.rules = ' + str(self.sites[0].rules))
+            for rule in site.rules:
+                print('rule.priority = ' + str(rule.priority))
+            # Parse Website
+            for rule in site.rules:
+                print('parsing site')
+                match = re.search(rule.target, data)
+                if match:
+                    print('match found' + str(rule.priority))
+                    link = match.group(1)
+                    if len(rule.actions) > 0:
+                        for group in range(1, len(match.groups()) + 1):
+                            if group == 1:
+                                link = {u'match' : link}
+                            else:
+                                link[u'group' + str(group)] = match.group(group)
+                        print(link)
+                        link = parseActions(link, rule.actions)[u'match']
+                    if rule.build.find(u'%s') != -1:
+                        link = rule.build % link
+                    if rule.type == u'video':
+                        video_found = True
+                        self.urlList.append(link)
+                        self.extensionList.append(rule.extension)
+                        if rule.quality != u'fallback':
+                            selList_type = {
+                                u'low' : __language__(30056), 
+                                u'standard' : __language__(30057), 
+                                u'high' : __language__(30058)
+                            }
+                            append = rule.info or rule.extension
+                            self.selectionList.append(selList_type[rule.quality] + u' (' + append + u')')
+                        if rule.dkey:
+                            match = re.search(rule.dkey, data)
+                            if match:
+                                dkey = match.group(1)
+                                if len(rule.dkey_actions) > 0:
+                                    dkey = {u'match' : dkey}
+                                    print('dkey = '  + str(dkey))
+                                    self.decryptList.append(parseActions(dkey, rule.dkey_actions)[u'match'])
+                                    print('dkey = '  + str(dkey))
+                    elif rule.type == u'dkey':
+                        self.dkey = link
+                        print('self.dkey = ' + self.dkey)
+                    elif rule.type == u'forward':
+                        url = link
+                        break
+                    elif rule.type.startswith(u'redirect'):
+                        tmp_catcher = CCatcherList()
+                        tmp_lItem = {u'url': link}
+                        print('len(self.sites) = ' + str(len(self.sites)))
+                        print('url' + url)
+                        if rule.type.find(u"(") != -1:
+                            tmp_lItem[u'catcher'] = rule.type[rule.type.find(u"(") + 1:-1]
+                        ### need to make the else statement below an elif statement 
+                        ### and make the else default to simple-match catcher 
+                        else:
+                            for root, dirs, files in os.walk(catDir):
+                                for filename in files:
+                                    print('filename = ' + filename)
+                                    if url.find(filename) != -1:
+                                        tmp_lItem[u'catcher'] = filename
+                        ret_attr = tmp_catcher.getEmbeddedLink(tmp_lItem)
+                        if ret_attr['link']:
+                            return ret_attr
+                        print('len(self.sites) = ' + str(len(self.sites)))
+                        break
+                    if int(addon.getSetting('video_type')) != 0 and rule.priority != 0:
+                        break
+        return None
+
+    def selectLink(self):
+        if int(addon.getSetting('video_type')) != 0:
+            self.videoExtension = '.' + self.extensionList[0]
+            if self.dkey:
+                link = sesame.decrypt(self.urlList[0], self.dkey, 256)
+            elif self.decryptList:
+                link = sesame.decrypt(self.urlList[0], self.decryptList[0], 256)
+            else:
+                link = self.urlList[0]
+        else:
+            dia = xbmcgui.Dialog()
+            selection = dia.select(__language__(30055), self.selectionList)
+            self.videoExtension = u'.' + self.extensionList[selection]
+            if self.dkey:
+                link = sesame.decrypt(self.urlList[selection], self.dkey, 256)
+            elif self.decryptList[selection]:
+                link = sesame.decrypt(self.urlList[selection], self.decryptList[selection], 256)
+            else:
+                link = self.urlList[selection]
+        print('link = ' + link)
+        self.link = link
+        return None
 
 class CCurrentList:
     def __init__(self):
         self.sort = [u'label', u'genre']
         self.skill = ''
-        self.player = ''
-        self.catcher = ''
         self.sites = []
         self.items = []
         self.dirs = CDirectory()
@@ -773,13 +1051,7 @@ class CCurrentList:
         }
 
         ext = self.getFileExtension(lItem[u'url'])
-        if lItem[u'type'] == u'video' or lItem[u'type'] == u'download':
-            if lItem[u'type'] == u'video':
-                self.catcher = self.loadCatcher(lItem[u'catcher'])
-                lItem[u'url'] = self.getDirectLink(lItem[u'url'], lItem)
-            if 'extension' in lItem:
-                self.videoExtension = u'.' + lItem[u'extension']
-        elif ext == u'add':
+        if ext == u'add':
             self.addItem(lItem[u'url'][:-4], lItem)
             result = -2
         elif ext == u'remove':
@@ -797,6 +1069,7 @@ class CCurrentList:
                 if lItem[u'type'] == u'directory':
                     List = self.loadLocal(lItem[u'url'], lItem)
                 elif lItem[u'type'] == u'search':
+                    search_phrase = getSearchPhrase()
                     List = self.loadLocal(lItem[u'cfg'], lItem)
                     lItem[u'url'] = lItem[u'url'] % search_phrase
                     List.start = lItem[u'url']
@@ -809,7 +1082,6 @@ class CCurrentList:
                         List = self.loadLocal(lItem[u'cfg'], lItem)
                         List.start = lItem[u'url']
                     self.sites.append((List, lItem))
-
 
             elif lItem[u'mode'] == u'viewAll':
                 List = self.loadLocal(lItem[u'url'], lItem)
@@ -838,6 +1110,7 @@ class CCurrentList:
 #                            elif item[u'type'] == u'sort':
 #                                List.sorts.append(item)
                 elif lItem[u'type'] == u'search':
+                    search_phrase = getSearchPhrase()
                     for item in List.items:
                         item[u'type'] = u'rss'
                         site = self.loadLocal(item[u'cfg'], item)
@@ -933,7 +1206,9 @@ class CCurrentList:
             print('Sending Items to XBMC')
         return 0, lItem
 
-    def loadLocal(self, filename, lItem, firstPage = True):
+    # Helper functions for parser
+
+    def loadLocal(self, filename, lItem):
         site = CRuleSite()
         key, value, site.status['file'] = smart_read_file(filename)
         if key == None and value == None:
@@ -1082,7 +1357,7 @@ class CCurrentList:
         return site
 
     def loadRemote(self, site, lItem):
-
+        # Get HTML site
         try:
             if enable_debug:
                 f = open(os.path.join(cacheDir, site.cfg + u'.page.html'), 'w')
@@ -1097,11 +1372,11 @@ class CCurrentList:
                 if enable_debug:
                     traceback.print_exc(file = sys.stdout)
                 return
-            site.data = handle.read()
+            data = handle.read()
             cj.save(os.path.join(settingsDir, 'cookies.lwp'))
             site.status['web_response'] = 'Successfully fetched'
             if enable_debug:
-                f.write(site.data)
+                f.write(data)
                 f.close()
         except IOError:
             site.status['web_response'] = 'Failed to receive a response from ' % site.start
@@ -1110,28 +1385,24 @@ class CCurrentList:
                 traceback.print_exc(file = sys.stdout)
             return
 
-        # Parser HTML site
-        self.remoteLoops(site, site.start, site.rules, site.data, lItem)
-        return
-
-    # Parsing loops for loadRemote and getDirectlink
-
-    def remoteLoops(self, site, url, rules, data, lItem):
-
-        # Create interests lists and modify rule RE patterns
+        # Create variables while loop
         interests = []
         interests2 = []
-        interestRE = re.compile(r'[-a-zA-Z0-9/,:;%!&$_#=~@<> ]+', re.IGNORECASE + re.DOTALL + re.MULTILINE)
+        if site.startRE:
+            point = data.find(site.startRE.encode('utf-8'))
+            if point == -1:
+                print('startRe not found for %s' % site.cfg)
+                point = 0
+        else:
+            point = 0
+        length = len(data)
 
-        for item_rule in rules:
-            if lItem[u'type'] == u'video':
-                item_rule.pattern1 = item_rule.target.encode('utf-8')
-                if item_rule.dkey:
-                    item_rule.pattern2 = item_rule.dkey.encode('utf-8')
-            else:
-                item_rule.pattern1 = item_rule.infos.encode('utf-8')
-                if item_rule.curr:
-                    item_rule.pattern2 = item_rule.curr.encode('utf-8')
+        # Append interests lists and modify rule RE patterns
+        interestRE = re.compile(r'[-a-zA-Z0-9/,:;%!&$_#=~@<> ]+', re.IGNORECASE + re.DOTALL + re.MULTILINE)
+        for item_rule in site.rules:
+            item_rule.pattern1 = item_rule.infos.encode('utf-8')
+            if item_rule.curr:
+                item_rule.pattern2 = item_rule.curr.encode('utf-8')
 
             match = interestRE.match(item_rule.pattern1)
             if match:
@@ -1154,6 +1425,7 @@ class CCurrentList:
                         item_rule.pattern2 +
                         '\''
                     )
+
         # Combine interests list
         interests2.extend(interests)
 
@@ -1168,7 +1440,7 @@ class CCurrentList:
         interestingRE = re.compile(interesting_pattern, re.IGNORECASE + re.DOTALL + re.MULTILINE)
 
         # Create REs for while loop
-        for item_rule in rules:
+        for item_rule in site.rules:
             match = interestingRE.match(item_rule.pattern1)
             if match:
                 item_rule.pattern1 = item_rule.pattern1[match.end():]
@@ -1176,16 +1448,7 @@ class CCurrentList:
             if item_rule.pattern2:
                 item_rule.pattern2RE = re.compile(item_rule.pattern2, re.IGNORECASE + re.DOTALL + re.MULTILINE)
 
-        # Find video links
-        if site.startRE:
-            point = data.find(site.startRE.encode('utf-8'))
-            if point == -1:
-                print('startRe not found for %s' % site.cfg)
-                point = 0
-        else:
-            point = 0
-
-        length = len(data)
+        # Find links
 #        print('start point = ' + str(point))
 #        print('start point datachunk = ' + data[point:point + 100])
         while point < length:
@@ -1197,7 +1460,7 @@ class CCurrentList:
 #                print('point of interest = ' + str(point))
 #                print('interesting point found = ' + interest.group(0))
                 for index, rule_name in enumerate(interests):
-                    item_rule = rules[index]
+                    item_rule = site.rules[index]
                     if rule_name.startswith(interest.group(0)):
 #                        print('rule_name = ' + rule_name)
 #                        print('datachunk = ' + data[point:point + 25])
@@ -1211,21 +1474,17 @@ class CCurrentList:
                                 if not match.group(0):
                                     break
                                 point += jump + len(match.group(0))
-                                if lItem[u'type'] == u'video':
-                                    url, point = self.saveLink(item_rule, url, match, point, length)
-                                else:
-                                    self.itemBuilder(site, item_rule, lItem, url, match)
+                                self.itemBuilder(site, item_rule, lItem, site.start, match)
                                 match = item_rule.pattern1RE.match(data, point + jump)
                             break
                     if point == intersting_point and item_rule.pattern2 and item_rule.pattern2.startswith(interest.group(0)):
                         match = item_rule.pattern2RE.match(data, point)
                         if match:
                             while match:
+                                if not match.group(0):
+                                    break
                                 point += len(match.group(0))
-                                if lItem[u'type'] == u'video':
-                                    self.dkeyBuilder(item_rule, url, match)
-                                else:
-                                    self.currBuilder(site, item_rule, lItem, url, match)
+                                self.currBuilder(site, item_rule, lItem, site.start, match)
                                 match = item_rule.pattern2RE.match(data, point)
                             break
                 if point == intersting_point:
@@ -1233,9 +1492,48 @@ class CCurrentList:
             else:
                 log('Parsing complete')
                 break
-        return url
+        return
 
-    # Helper Functions for Function loadRemote
+    def createDirs(self, List):
+        keys = []
+        Dict = {}
+        for item in List:
+            item[u'type'] = u'rss'
+            keys.append(item[u'title'])
+        for i in range(len(keys)):
+            key = keys.pop().lower().strip()
+            value = List.pop()
+            if key in Dict:
+                Dict[key].append(value)
+            else:
+                Dict[key] = [value]
+
+        keys1 = sorted(Dict.keys())
+        keys1.reverse()
+        keys2 = sorted(Dict.keys())
+        keys2.reverse()
+        while len(keys1)> 0:
+            key1 = keys1.pop()
+            for key2 in keys2:
+                if key1 != key2:
+                    if key2.startswith(key1):
+                        if key1 not in self.dirs:
+                            self.dirs[key1] = Dict[key1]
+                        self.dirs[key1] = Dict[key2]
+                        keys1.remove(key2)
+        return None
+
+    def getSearchPhrase(self):
+        try:
+            curr_phrase = urllib.unquote_plus(addon.getSetting('curr_search'))
+        except:
+            addon.setSetting('curr_search', '')
+            curr_phrase = ''
+        search_phrase = self.getKeyboard(default = curr_phrase, heading = __language__(30102))
+        addon.setSetting('curr_search', search_phrase)
+        return search_phrase
+
+    # Helper functions for loadRemote
 
     def itemBuilder(self, site, rule, lItem, url, match):
         tmp = CListItem()
@@ -1271,7 +1569,8 @@ class CCurrentList:
             pass
         if rule.skill.find(u'recursive') != -1:
             tmp.merge(lItem)
-            self.loadRemote(tmp.infos_dict[u'url'], False, tmp.infos_dict)
+            site.start = tmp.infos_dict[u'url']
+            self.loadRemote(site, tmp.infos_dict)
             tmp = None
         elif lItem[u'mode'] == u'view':
 #            print('lItem[u\'mode\'] = ' + lItem[u'mode'])
@@ -1292,6 +1591,7 @@ class CCurrentList:
                     tmp.merge(lItem)
                     site.categories.append(tmp.infos_dict)
                 elif tmp.infos_dict[u'type'] == u'video':
+                    tmp.infos_dict[u'mode'] = u'play'
                     tmp.merge(lItem)
                     site.items.append(tmp.infos_dict)
             elif rule.skill.find(u'directory') != -1:
@@ -1318,6 +1618,7 @@ class CCurrentList:
                     tmp.merge(lItem)
                     site.sorts.append(tmp.infos_dict)
                 elif tmp.infos_dict[u'type'] == u'video':
+                    tmp.infos_dict[u'mode'] = u'play'
                     tmp.merge(lItem)
                     site.items.append(tmp.infos_dict)
         return
@@ -1421,246 +1722,29 @@ class CCurrentList:
                 site.items.append(tmp.infos_dict)
         return
 
-    def loadCatcher(self, title):
-        catcher_list = CCatcherList()
-        key, value, catcher_list.status['file'] = smart_read_file(title)
-        line = 0
-        length = len(key)
-        breaker = -10
-        if key[line] == u'player':
-            self.player = value[line]
-            line += 1
-        while line < length:
-            breaker += 1
-            if key[line] == u'url':
-                site = CCatcherRuleSite()
-                site.url = value[line]
-                line += 1
-            if key[line] == u'data':
-                site.data = value[line]
-                line += 1
-            if key[line] == u'header':
-                index = value[line].find(u'|')
-                site.txheaders[value[line][:index]] = value[line][index+1:]
-                line += 1
-            if key[line] == u'limit':
-                site.limit = int(value[line])
-                line += 1
-            if key[line] == u'startRE':
-                site.startRE = value[line]
-                line += 1
-            while line < length:
-                breaker += 1
-                if key[line] == u'target':
-                    item_rule = CCatcherRuleItem()
-                    item_rule.target = value[line]
-                    line += 1
-                if key[line] == u'quality':
-                    item_rule.quality = value[line]
-                    site.rules.append(item_rule)
-                    line += 1
-                    continue
-                if key[line] == u'build':
-                    item_rule.build = value[line]
-                    catcher_list.sites.append(site)
-                    line += 1
+    def listFormatter(self, List):
+        list1 = set(List)
+        list2 = []
+        list3 = set(List)
+        while len(list1) > 0:
+            x = list1.pop()
+            for y in list1:
+                if x.startswith(y):
+                    if y not in list2:
+                        list2.append(y)
+                elif y.startswith(x):
+                    list2.append(x)
                     break
-                if key[line] == u'forward':
-                    item_rule.forward = value[line]
-                    site.rules.append(item_rule)
-                    catcher_list.sites.append(site)
-                    line += 1
-                    break
-                while key[line] != u'quality' and key[line] != u'forward':
-                    breaker += 1
-                    if key[line] == u'actions':
-                        if value[line].find(u'|'):
-                            item_rule.actions = value[line].split(u'|')
-                        else:
-                            item_rule.actions.append(value[line])
-                        line += 1
-                    if key[line] == u'dkey':
-                        item_rule.dkey = value[line]
-                        line += 1
-                        if key[line] == u'dkey_actions':
-                            if value[line].find(u'|'):
-                                item_rule.dkey_actions = value[line].split(u'|')
-                            else:
-                                item_rule.dkey_actions.append(value[line])
-                            line += 1
-                    if key[line] == u'extension':
-                        item_rule.extension = value[line]
-                        line += 1
-                    if key[line] == u'info':
-                        item_rule.info = value[line]
-                        line += 1
-                    if line >= length or breaker == length:
+        for x in list3:
+            if x not in list2:
+                for z in list2:
+                    if x.startswith(z):
                         break
-                if breaker == length:
-                    break
-            if breaker == length:
-                break
-        if breaker == length:
-            catcher_list.status['syntax'] = 'Cfg syntax is invalid.\nKey error in line %s' % str(line)
-        else:
-            catcher_list.status['syntax'] = 'Cfg syntax is valid'
-        return catcher_list
-
-    def getDirectLink(self, url, lItem):
-        for site in self.catcher.sites:
-            print('url = ' + url)
-            # Download website
-            if site.data == '':
-                if site.url.find(u'%') != -1:
-                    url = site.url % url
-                req = Request(url, None, site.txheaders)
-                urlfile = opener.open(req)
-                if site.limit == 0:
-                    data = urlfile.read()
                 else:
-                    data = urlfile.read(site.limit)
-            else:
-                data_url = site.data % url
-                req = Request(site.url, data_url, site.txheaders)
-                response = urlopen(req)
-                if site.limit == 0:
-                    data = response.read()
-                else:
-                    data = response.read(site.limit)
-            if enable_debug:
-                f = open(os.path.join(cacheDir, 'site.html'), 'w')
-                f.write(u'<Titel>'+ url + u'</Title>\n\n')
-                f.write(data)
-                f.close()
-
-            #Parse Website
-            for rule in site.rules:
-                match = re.search(rule.target, data)
-                if match:
-                    link = match.group(1)
-                    if len(rule.actions) > 0:
-                        for group in range(1, len(match.groups()) + 1):
-                            if group == 1:
-                                link = {u'match' : link}
-                            else:
-                                link[u'group' + str(group)] = match.group(group)
-                        link = parseActions(link, rule.actions)
-                        link = link[u'match']
-                    if rule.build.find(u'%s') != -1:
-                        link = rule.build % link
-                    if rule.forward:
-                        url = link
-                        break
-                    self.catcher.urlList.append(link)
-                    self.catcher.extensionList.append(rule.extension)
-                    self.catcher.decryptList.append(rule.dkey)
-                    if rule.quality != u'fallback':
-                        selList_type = {
-                            u'low' : __language__(30056), 
-                            u'standard' : __language__(30057), 
-                            u'high' : __language__(30058)
-                        }
-                        append = rule.info or rule.extension
-                        self.catcher.selectionList.append(selList_type[rule.quality] + u' (' + append + u')')
-
-        if len(self.catcher.urlList) > 0:
-            if len(self.catcher.urlList) == 1:
-                self.videoExtension = '.' + self.catcher.extensionList[0]
-                if self.catcher.decryptList[0]:
-                    link = sesame.decrypt(self.catcher.urlList[0], self.catcher.dkey, 256)
-                else:
-                    link = self.catcher.urlList[0]
-                link = self.catcher.urlList[0]
-            elif int(addon.getSetting('video_type')) == 0:
-                dia = xbmcgui.Dialog()
-                selection = dia.select(__language__(30055), self.catcher.selectionList)
-                self.videoExtension = u'.' + self.catcher.extensionList[selection]
-                if self.catcher.decryptList[selection]:
-                    link = sesame.decrypt(self.catcher.urlList[selection], self.catcher.dkey, 256)
-                else:
-                    link = self.catcher.urlList[selection]
-            else:
-                video_type = {
-                    1:[u'low', u'standard', u'high'], 
-                    2:[u'standard', u'low', u'high'], 
-                    3:[u'high', u'standard', u'low']
-                }
-                video_type = video_type[int(addon.getSetting('video_type'))]
-                for video_qual in video_type:
-                    for rule_name, rule_value in self.catcher.sites.rules.iteritems():
-                        item_rule = rule_value
-                        if item_rule.quality == video_qual and item_rule.link != '':
-                            self.videoExtension = u'.' + item_rule.extension
-                            if self.catcher.decryptList[index]:
-                                try:
-                                    link = sesame.decrypt(item_rule.link, self.catcher.dkey, 256)
-                                    log(link)
-                                except:
-                                    log('Incorrect decryption key may have been supplied')
-                            else:
-                                link = item_rule.link
-        else:
-            link = ''
-        return link
-
-    # Helper functions for Function getDirectLink
-
-    def saveLink(self, rule, url, match, point, length):
-        link = match.group(1)
-        if len(rule.actions) > 0:
-            for group in range(1, len(match.groups()) + 1):
-                if group == 1:
-                    link = {u'match' : link}
-                else:
-                    link[u'group' + str(group)] = match.group(group)
-            link = parseActions(link, rule.actions)
-            link = link[u'match']
-        if rule.build.find(u'%s') != -1:
-            link = rule.build % link
-        if rule.forward:
-            url = link
-            point = length
-            return url, point
-        rule.link = link
-        self.catcher.urlList.append(rule.link)
-        self.catcher.extensionList.append(rule.extension)
-        self.catcher.decryptList.append(rule.dkey)
-        if rule.quality == u'fallback':
-            point = length
-        else:
-            selList_type = {
-                u'low' : __language__(30056), 
-                u'standard' : __language__(30057), 
-                u'high' : __language__(30058)
-            }
-            append = rule.info or rule.extension
-            self.catcher.selectionList.append(selList_type[rule.quality] + u' (' + append + u')')
-        return url, point
-
-    def dkeyBuilder(self, rule, url, match):
-        link = match.group(1)
-        link = {u'match' : link}
-        self.catcher.dkey = parseActions(link, rule.dkey_actions)[u'match']
-        return
+                    list2.append(x)
+        return list2
 
     # Helper functions for the class
-
-    def getKeyboard(self, default = '', heading = '', hidden = False):
-        kboard = xbmc.Keyboard(default, heading, hidden)
-        kboard.doModal()
-        if kboard.isConfirmed():
-            return kboard.getText()
-        return ''
-
-    def getSearchPhrase(self):
-        try:
-            curr_phrase = urllib.unquote_plus(addon.getSetting('curr_search'))
-        except:
-            addon.setSetting('curr_search', '')
-            curr_phrase = ''
-        search_phrase = self.getKeyboard(default = curr_phrase, heading = __language__(30102))
-        addon.setSetting('curr_search', search_phrase)
-        return search_phrase
 
     def getFileExtension(self, filename):
         ext_pos = filename.rfind(u'.')
@@ -1668,6 +1752,13 @@ class CCurrentList:
             return smart_unicode(filename[ext_pos+1:])
         else:
             return ''
+
+    def getKeyboard(self, default = '', heading = '', hidden = False):
+        kboard = xbmc.Keyboard(default, heading, hidden)
+        kboard.doModal()
+        if kboard.isConfirmed():
+            return kboard.getText()
+        return ''
 
     def addItem(self, name):
         item = self.getItem(name)
@@ -1734,68 +1825,19 @@ class CCurrentList:
         f.close()
         return
 
-    def listFormatter(self, List):
-        list1 = set(List)
-        list2 = []
-        list3 = set(List)
-        while len(list1) > 0:
-            x = list1.pop()
-            for y in list1:
-                if x.startswith(y):
-                    if y not in list2:
-                        list2.append(y)
-                elif y.startswith(x):
-                    list2.append(x)
-                    break
-        for x in list3:
-            if x not in list2:
-                for z in list2:
-                    if x.startswith(z):
-                        break
-                else:
-                    list2.append(x)
-        return list2
-
-    def createDirs(self, List):
-        keys = []
-        Dict = {}
-        for item in List:
-            item[u'type'] = u'rss'
-            keys.append(item[u'title'])
-        for i in range(len(keys)):
-            key = keys.pop().lower().strip()
-            value = List.pop()
-            if key in Dict:
-                Dict[key].append(value)
-            else:
-                Dict[key] = [value]
-
-        keys1 = sorted(Dict.keys())
-        keys1.reverse()
-        keys2 = sorted(Dict.keys())
-        keys2.reverse()
-        while len(keys1)> 0:
-            key1 = keys1.pop()
-            for key2 in keys2:
-                if key1 != key2:
-                    if key2.startswith(key1):
-                        if key1 not in self.dirs:
-                            self.dirs[key1] = Dict[key1]
-                        self.dirs[key1] = Dict[key2]
-                        keys1.remove(key2)
-        return None
-
 class Main:
     def __init__(self):
         xbmc.log('Initializing VideoDevil')
         self.pDialog = None
         self.curr_file = ''
         self.handle = 0
-        self.currentlist = CCurrentList()
+        self.currentlist = None
+        self.catcher = None
         xbmc.log('VideoDevil initialized')
         self.run()
 
     def playVideo(self, videoItem):
+        print('playVideo url = ' + videoItem[u'url'])
         if videoItem == None:
             return
         if videoItem[u'url'] == '':
@@ -1819,7 +1861,7 @@ class Main:
                 listitem.setInfo(type = 'Video', infoLabels = {info_name: info_value})
             except:
                 pass
-        if self.currentlist.skill.find(u'nodownload') == -1:
+        if self.catcher.skill.find(u'nodownload') == -1:
             if addon.getSetting('download') == 'true':
                 videoItem[u'url'] = self.downloadMovie(videoItem)
             elif addon.getSetting('download') == 'false' and addon.getSetting('download_ask') == 'true':
@@ -1833,11 +1875,11 @@ class Main:
             2:xbmc.PLAYER_CORE_DVDPLAYER
         }
         player_type = player_type[int(addon.getSetting('player_type'))]
-        if self.currentlist.player == u'auto':
+        if self.catcher.player == u'auto':
             player_type = xbmc.PLAYER_CORE_AUTO
-        elif self.currentlist.player == u'mplayer':
+        elif self.catcher.player == u'mplayer':
             player_type = xbmc.PLAYER_CORE_MPLAYER
-        elif self.currentlist.player == u'dvdplayer':
+        elif self.catcher.player == u'dvdplayer':
             player_type = xbmc.PLAYER_CORE_DVDPLAYER
 
         xbmc.Player(player_type).play(str(videoItem[u'url']), listitem)
@@ -1853,9 +1895,9 @@ class Main:
                     os.mkdir(download_path)
             except:
                 pass
-        tmp_file = tempfile.NamedTemporaryFile(suffix = self.currentlist.videoExtension, dir=download_path)
+        tmp_file = tempfile.NamedTemporaryFile(suffix = self.catcher.videoExtension, dir=download_path)
         tmp_file = clean_filename(tmp_file.name)
-        vidfile = clean_filename(download_path + clean_filename(videoItem[u'title']) + self.currentlist.videoExtension)
+        vidfile = clean_filename(download_path + clean_filename(videoItem[u'title']) + self.catcher.videoExtension)
         self.pDialog = xbmcgui.DialogProgress()
         self.pDialog.create('VideoDevil', __language__(30050), __language__(30051))
         urllib.urlretrieve(videoItem[u'url'], tmp_file, self.video_report_hook)
@@ -1877,13 +1919,17 @@ class Main:
 
     def parseView(self, url):
         lItem = self.decodeUrl(url)
-        result, lItem = self.currentlist.parser(lItem)
-        if lItem[u'type'] == u'video':
-            result = self.playVideo(lItem)
-        elif lItem[u'type'] == u'download':
-            self.downloadMovie(lItem[u'url'], lItem[u'title'])
-            result = -2
+        if lItem[u'mode'] == u'play':
+            self.catcher = CCatcherList()
+            lItem[u'url'] = self.catcher.getDirectLink(lItem)
+            if lItem[u'type'] == u'video':
+                result = self.playVideo(lItem)
+            elif lItem[u'type'] == u'download':
+                self.downloadMovie(lItem[u'url'], lItem[u'title'])
+                result = -2
         else:
+            self.currentlist = CCurrentList()
+            result, lItem = self.currentlist.parser(lItem)
             sort_dict = {
                 u'label' : xbmcplugin.SORT_METHOD_LABEL, 
                 u'size' : xbmcplugin.SORT_METHOD_SIZE, 

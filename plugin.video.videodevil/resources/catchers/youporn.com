@@ -4,23 +4,23 @@
 url=%s
 startRE=currentVideo
 ########################################################
-target=var\s+encryptedQuality240URL\s+=\s+'([^']+)';
-dkey=video_title'\s+:\s+"([^"]+)",
-dkey_actions=replace(match, &amp;, &)|unquote(match)
-info=240p
-quality=low
-########################################################
-target=var\s+encryptedQuality480URL\s+=\s+'([^']+)';
-dkey=video_title'\s+:\s+"([^"]+)",
-dkey_actions=replace(match, &amp;, &)|unquote(match)
-info=480p
-quality=standard
+target=video_title'\s+:\s+"([^"]+)",
+actions=replace(match, &amp;, &)|unquote(match)
+type=dkey
+priority=0
 ########################################################
 target=var\s+encryptedQuality720URL\s+=\s+'([^']+)';
-dkey=video_title'\s+:\s+"([^"]+)",
-dkey_actions=replace(match, &amp;, &)|unquote(match)
 info=720p
 quality=high
+priority=1
 ########################################################
-build=%s
+target=var\s+encryptedQuality480URL\s+=\s+'([^']+)';
+info=480p
+quality=standard
+priority=2
+########################################################
+target=var\s+encryptedQuality240URL\s+=\s+'([^']+)';
+info=240p
+quality=low
+priority=3
 ########################################################
