@@ -1855,7 +1855,7 @@ class Main:
                 traceback.print_exc(file = sys.stdout)
             videoItem[u'icon'] = os.path.join(imgDir, 'video.png')
         listitem = xbmcgui.ListItem(videoItem[u'title'], videoItem[u'title'], videoItem[u'icon'], videoItem[u'icon'])
-        listitem.setInfo('video', {'Title':videoItem[u'title']})
+        listitem.setInfo('video', {'Title': videoItem[u'title']})
         for info_name, info_value in videoItem.iteritems():
             try:
                 listitem.setInfo(type = 'Video', infoLabels = {info_name: info_value})
