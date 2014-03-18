@@ -64,6 +64,13 @@ director=VideoDevil
 icon=http://staticedge.hardsextube.com/common/img/logogrey.png
 url=hardsextube.com.cfg
 ########################################################
+title=LubeTube
+type=rss
+genre=lubetube
+director=VideoDevil
+icon=video.devil.image|lubetube.png
+url=lubetube.com.cfg
+########################################################
 title=MadThumbs
 type=rss
 genre=madthumbs
@@ -189,6 +196,13 @@ genre=XVideos
 director=VideoDevil
 icon=video.devil.image|xvideos.png
 url=xvideos.com.cfg
+########################################################
+title=YouJizz
+type=rss
+genre=YouJizz
+director=VideoDevil
+icon=video.devil.image|youjizz.png
+url=youjizz.com.cfg
 ########################################################
 title=YouPorn
 type=rss
