@@ -1,3 +1,17 @@
+[B]Version 1.7.79[/B]
+
+- Updated: tnaflix
+- Fixed: video regex
+- Removed: yuvutu
+- Removed: boysfood
+- Removed: shufuni
+- Removed: keezmovies
+
+[B]Version 1.7.78[/B]
+
+- Updated: xhamster
+- Fixed: catcher
+
 [B]Version 1.7.77[/B]
 
 - Removed: 4tube
