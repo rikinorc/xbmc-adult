@@ -853,7 +853,8 @@ class CCatcherList:
             # Parse Website
             for rule in site.rules:
                 print('parsing site')
-                match = re.search(rule.target, data)
+                print('with rule: ' + rule.target)
+                match = re.search(rule.target, data, re.IGNORECASE + re.DOTALL + re.MULTILINE)
                 if match:
                     print('match found' + str(rule.priority))
                     link = match.group(1)
@@ -873,7 +874,7 @@ class CCatcherList:
                         self.urlList.append(link)
                         self.extensionList.append(rule.extension)
                         if rule.dkey != None:
-                            match = re.search(rule.dkey, data)
+                            match = re.search(rule.dkey, data, re.IGNORECASE + re.DOTALL + re.MULTILINE)
                             if match:
                                 dkey = match.group(1)
                                 if len(rule.dkey_actions) > 0:
@@ -1161,6 +1162,7 @@ class CCurrentList:
                         tmp[u'mode'] = Mode.VIEW_RSS
                     elif lItem[u'mode'] == Mode.VIEW_DIRECTORY:
                         tmp[u'mode'] = Mode.VIEW_RSS
+                        tmp[u'type'] = u'rss'
                     elif lItem[u'mode'] == Mode.VIEWALL_RSS:
                         if tmp[u'type'] == u'search':
                             tmp[u'mode'] = Mode.VIEWALL_SEARCH
@@ -1205,7 +1207,6 @@ class CCurrentList:
             if enable_debug:
                 traceback.print_exc(file = sys.stdout)
             return
-
         # Create variables while loop
         interests = []
         interests2 = []
@@ -1217,14 +1218,12 @@ class CCurrentList:
         else:
             point = 0
         length = len(data)
-
         # Append interests lists and modify rule RE patterns
         interestRE = re.compile(r'[-a-zA-Z0-9/,:;%!&$_#=~@<> ]+', re.IGNORECASE + re.DOTALL + re.MULTILINE)
         for item_rule in site.rules:
             item_rule.infos = item_rule.infos.encode('utf-8')
             if item_rule.curr:
                 item_rule.curr = item_rule.curr.encode('utf-8')
-
             match = interestRE.match(item_rule.infos)
             if match:
                 interests.append(match.group(0))
@@ -1246,20 +1245,16 @@ class CCurrentList:
                         item_rule.curr +
                         '\''
                     )
-
         # Combine interests list
         interests2.extend(interests)
-
         # Remove longer matches that may cause the while loop to shorter matches
         # i.e. remove '<img src' if '<img' is in the list
 #        print('interests2 = ' + str(interests2))
         interesting_items = self.listFormatter(interests2)
 #        print('interesting_items = ' + str(interesting_items))
-
         # Create interestingRE from interesting_items list
         interesting_pattern = '(' + '|'.join(interesting_items) + ')'
         interestingRE = re.compile(interesting_pattern, re.IGNORECASE + re.DOTALL + re.MULTILINE)
-
         # Create REs for while loop
         for item_rule in site.rules:
             match = interestingRE.match(item_rule.infos)
@@ -1268,7 +1263,6 @@ class CCurrentList:
             item_rule.infosRE = re.compile(item_rule.infos, re.IGNORECASE + re.DOTALL + re.MULTILINE)
             if item_rule.curr:
                 item_rule.currRE = re.compile(item_rule.curr, re.IGNORECASE + re.DOTALL + re.MULTILINE)
-
         # Find links
 #        print('start point = ' + str(point))
 #        print('start point datachunk = ' + data[point:point + 100])
@@ -1778,9 +1772,12 @@ class Main:
                     try:
                         totalItems = len(self.currentlist.items[u'video']) + len(self.currentlist.items) + len(self.currentlist.links) - 1
                     except:
-                        totalItems = len(self.currentlist.items[lItem[u'type']]) + len(self.currentlist.items) + len(self.currentlist.links) - 1
-                        if lItem[u'type'] in self.currentlist.items:
-                            totalItems -= 1
+                        try:
+                            totalItems = len(self.currentlist.items[lItem[u'type']]) + len(self.currentlist.items) + len(self.currentlist.links) - 1
+                            if lItem[u'type'] in self.currentlist.items:
+                                totalItems -= 1
+                        except:
+                            totalItems = len(self.currentlist.items) + len(self.currentlist.links)
                     print(totalItems)
                     for type, infos, items in self.currentlist.items.files():
                         if type == u'video':

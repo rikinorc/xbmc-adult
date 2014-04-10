@@ -12,6 +12,7 @@ actions=unquote(match)
 quality=standard
 ########################################################
 target=file="([^"]+mp4)"
+extension=mp4
 quality=standard
 ########################################################
 # Redirects from other sites
