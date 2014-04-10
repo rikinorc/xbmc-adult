@@ -577,13 +577,13 @@ def getKeyboard(default = '', heading = '', hidden = False):
 
 def getSearchPhrase():
     try:
-        curr_phrase = urllib.unquote_plus(addon.getSetting('curr_search'))
+        curr_phrase = addon.getSetting('curr_search')
     except:
         addon.setSetting('curr_search', '')
         curr_phrase = ''
     search_phrase = getKeyboard(default = curr_phrase, heading = __language__(30102))
     addon.setSetting('curr_search', search_phrase)
-    return search_phrase
+    return search_phrase.replace(' ', '+')
 
 class Mode:
     START = 0
@@ -870,9 +870,7 @@ class CCatcherList:
                     if rule.type == u'video':
                         video_found = True
                         print(link)
-                        print(clean_safe(link))
-                        print(urllib2.unquote(link))
-                        self.urlList.append(clean_safe(urllib2.unquote(link)))
+                        self.urlList.append(link)
                         self.extensionList.append(rule.extension)
                         if rule.dkey != None:
                             match = re.search(rule.dkey, data)
@@ -883,7 +881,7 @@ class CCatcherList:
                                     print('dkey = '  + str(dkey))
                                     dkey = parseActions(dkey, rule.dkey_actions)[u'match']
                                 print('dkey = '  + str(dkey))
-                                self.decryptList.append(clean_safe(urllib2.unquote(dkey)))
+                                self.decryptList.append(dkey)
                         else:
                             self.decryptList.append(None)
                         if int(addon.getSetting('video_type')) == 0:
@@ -895,7 +893,7 @@ class CCatcherList:
                             append = rule.info or rule.extension
                             self.selectionList.append(selList_type[rule.quality] + u' (' + append + u')')
                     elif rule.type == u'dkey':
-                        self.dkey = clean_safe(urllib2.unquote(link))
+                        self.dkey = link
                         print('self.dkey = ' + self.dkey)
                     elif rule.type == u'forward':
                         url = clean_safe(urllib2.unquote(link))
@@ -926,23 +924,20 @@ class CCatcherList:
 
     def selectLink(self):
         if int(addon.getSetting('video_type')) != 0:
-            self.videoExtension = '.' + self.extensionList[0]
-            if self.dkey != None:
-                link = sesame.decrypt(self.urlList[0], self.dkey, 256)
-            elif self.decryptList[0] != None:
-                link = sesame.decrypt(self.urlList[0], self.decryptList[0], 256)
-            else:
-                link = self.urlList[0]
+            selection = 0
         else:
             dia = xbmcgui.Dialog()
             selection = dia.select(__language__(30055), self.selectionList)
-            self.videoExtension = u'.' + self.extensionList[selection]
-            if self.dkey != None:
-                link = sesame.decrypt(self.urlList[selection], self.dkey, 256)
-            elif self.decryptList[selection] != None:
-                link = sesame.decrypt(self.urlList[selection], self.decryptList[selection], 256)
-            else:
-                link = self.urlList[selection]
+        self.videoExtension = u'.' + self.extensionList[selection]
+        self.urlList[selection] = clean_safe(urllib2.unquote(self.urlList[selection]))
+        if self.dkey != None:
+            self.dkey = clean_safe(urllib2.unquote(self.dkey))
+            link = sesame.decrypt(self.urlList[selection], self.dkey, 256)
+        elif self.decryptList[selection] != None:
+            self.decryptList[selection] = clean_safe(urllib2.unquote(self.decryptList[selection]))
+            link = sesame.decrypt(self.urlList[selection], self.decryptList[selection], 256)
+        else:
+            link = self.urlList[selection]
         print('link = ' + link)
         self.link = link
         return None
@@ -1146,7 +1141,10 @@ class CCurrentList:
                     line += 1
                 while line < length and key[line] != u'url':
                     if tmp:
-                        tmp[key[line]] = value[line]
+                        if key[line] == u'mode':
+                            tmp[key[line]] = int(value[line])
+                        else:
+                            tmp[key[line]] = value[line]
                         line += 1
                     else:
                         break
@@ -1167,8 +1165,6 @@ class CCurrentList:
                         if tmp[u'type'] == u'search':
                             tmp[u'mode'] = Mode.VIEWALL_SEARCH
                     elif lItem[u'mode'] == Mode.VIEWALL_SEARCH:
-                        tmp[u'mode'] = Mode.VIEWALL_RSS
-                    elif lItem[u'mode'] == Mode.VIEWALL_DIRECTORY:
                         tmp[u'mode'] = Mode.VIEWALL_RSS
                     site.links[tmp[u'type']] = (tmp, [tmp])
                     tmp = None
@@ -1347,8 +1343,6 @@ class CCurrentList:
             if lItem[u'mode'] == Mode.VIEW_RSS:
                 if tmp[u'type'] == u'video':
                     tmp[u'mode'] = Mode.PLAY
-#                elif tmp[u'type'] != u'next':
-#                    tmp[u'mode'] = Mode.VIEW_DIRECTORY
             elif lItem[u'mode'] == Mode.VIEW_SEARCH:
                 if tmp[u'type'] == u'video':
                     tmp[u'mode'] = Mode.PLAY
@@ -1369,7 +1363,10 @@ class CCurrentList:
                 else:
                     tmp[u'mode'] = Mode.VIEWALL_DIRECTORY
             elif lItem[u'mode'] == Mode.VIEWALL_DIRECTORY:
-                tmp[u'mode'] = Mode.VIEWALL_RSS
+                if tmp[u'type'] == u'video':
+                    tmp[u'mode'] = Mode.PLAY
+                else:
+                    tmp[u'mode'] = Mode.VIEWALL_RSS
             if rule.type in site.items:
                 site.items[rule.type] = (tmp, [tmp])
             else:
@@ -1728,13 +1725,15 @@ class Main:
                                 self.currentlist.sites.append((site, item))
                 elif lItem[u'mode'] == Mode.VIEWALL_DIRECTORY:
                     for type, infos, items in List.links.files():
-                        self.currentlist.items[type] = (infos, items)
-                    List = self.currentlist.loadLocal(lItem[u'url'], lItem)
-                    for type, infos, items in List.links.files():
                         for item in items:
-                            site = self.currentlist.loadLocal(item[u'cfg'], item)
-                            site.start = item[u'url']
-                            self.currentlist.sites.append((site, item))
+                            if item[u'mode'] == Mode.VIEWALL_DIRECTORY:
+                                print(item[u'mode'])
+                                item[u'mode'] = Mode.VIEWALL_RSS
+                                self.currentlist.items[type] = (infos, [item])
+                            else:
+                                site = self.currentlist.loadLocal(item[u'cfg'], item)
+                                site.start = item[u'url']
+                                self.currentlist.sites.append((site, item))
             #loadRemote
             print('Parsing Websites')
             if self.currentlist.sites == []:
@@ -1774,32 +1773,6 @@ class Main:
                 cmp = lItem[u'mode'] == Mode.VIEW_RSS or lItem[u'mode'] == Mode.VIEW_SEARCH
                 cmp2 = lItem[u'mode'] == Mode.VIEWALL_RSS or lItem[u'mode'] == Mode.VIEWALL_SEARCH
                 if cmp or cmp2:
-                    types = {
-                        u'search': {
-                            u'title': u'  ' + __language__(30102) + u'  ',
-                            u'icon': os.path.join(imgDir, u'search.png'),
-                            u'url': u'Search.directory',
-                            u'type': u'search'
-                        },
-                        u'category': {
-                            u'title': u'  ' + __language__(30100) + u'  ',
-                            u'icon': os.path.join(imgDir, u'face_devil_grin.png'),
-                            u'url': u'Categories.directory',
-                            u'type': u'category'
-                        },
-                        u'sort': {
-                            u'title': u'  ' + __language__(30109) + u'  ',
-                            u'icon': os.path.join(imgDir, u'face_kiss.png'),
-                            u'url': u'Sorting.directory',
-                            u'type': u'sort'
-                        },
-                        u'next': {
-                            u'title': __language__(30103),
-                            u'icon': os.path.join(imgDir, u'next.png'),
-                            u'url': u'Next_Pages.directory',
-                            u'type': u'next'
-                        }
-                    }
                     print(self.currentlist.items.types)
                     print(self.currentlist.links.types)
                     try:
@@ -1817,52 +1790,42 @@ class Main:
                         elif type == lItem[u'type'] and cmp:
                             self.addListItems(items, totalItems)
                         else:
-                            try:
-                                infos = infos
-                            except:
-                                print('Skipping type %s self.currentlist.items' % type)
+                            filename = clean_filename(infos[u'title'].strip(u' ') + u'.list')
+                            self.saveList(cacheDir, filename, items, Listname = infos[u'title'].strip(u' '))
+                            tmp = {
+                                u'title': infos[u'title'],
+                                u'url': filename,
+                                u'type': infos[u'type'],
+                                u'icon': infos[u'icon']
+                            }
+                            if tmp[u'type'] == u'search':
+                                tmp[u'mode'] = Mode.VIEWALL_SEARCH
+                            elif tmp[u'type'] == u'next':
+                                tmp[u'mode'] = Mode.VIEWALL_RSS
+                            elif cmp:
+                                tmp[u'mode'] = Mode.VIEW_DIRECTORY
                             else:
-                                filename = clean_filename(infos[u'title'].strip(u' ') + u'.list')
-                                self.saveList(cacheDir, filename, items, Listname = infos[u'title'].strip(u' '))
-                                tmp = {
-                                    u'title': infos[u'title'],
-                                    u'url': filename,
-                                    u'type': infos[u'type'],
-                                    u'icon': infos[u'icon']
-                                }
-                                if tmp[u'type'] == u'search':
-                                    tmp[u'mode'] = Mode.VIEWALL_SEARCH
-                                elif tmp[u'type'] == u'next':
-                                    tmp[u'mode'] = Mode.VIEWALL_RSS
-                                elif cmp:
-                                    tmp[u'mode'] = Mode.VIEW_DIRECTORY
-                                else:
-                                    tmp[u'mode'] = Mode.VIEWALL_DIRECTORY
-                                inheritInfos(tmp, lItem)
-                                self.addListItem(tmp, totalItems)
+                                tmp[u'mode'] = Mode.VIEWALL_DIRECTORY
+                            inheritInfos(tmp, lItem)
+                            self.addListItem(tmp, totalItems)
                     if cmp:
                         for type, infos, items in self.currentlist.links.files():
                             if type not in self.currentlist.items:
                                 self.addListItems(items, totalItems)
                     else:
                         for type, infos, items in self.currentlist.links.files():
-                            try:
-                                infos = infos
-                            except:
-                                print('Skipping type %s in self.currentlist.links' % type)
-                            else:
-                                filename = clean_filename(infos[u'title'].strip(u' '))
-                                self.saveList(cacheDir, filename, items, Listname = infos[u'title'].strip(u' '))
-                                if type not in self.currentlist.items:
-                                    tmp = {
-                                        u'title': infos[u'title'],
-                                        u'url': filename,
-                                        u'type': infos[u'type'],
-                                        u'icon': infos[u'icon'],
-                                        u'mode': Mode.VIEWALL_DIRECTORY
-                                    }
-                                    inheritInfos(tmp, lItem)
-                                    self.addListItem(tmp, totalItems)
+                            filename = clean_filename(infos[u'title'].strip(u' ') + u'.list')
+                            self.saveList(cacheDir, filename, items, Listname = infos[u'title'].strip(u' '), mode = 'a')
+                            if type not in self.currentlist.items:
+                                tmp = {
+                                    u'title': infos[u'title'],
+                                    u'url': filename,
+                                    u'type': infos[u'type'],
+                                    u'icon': infos[u'icon'],
+                                    u'mode': Mode.VIEWALL_DIRECTORY
+                                }
+                                inheritInfos(tmp, lItem)
+                                self.addListItem(tmp, totalItems)
                 elif lItem[u'mode'] == Mode.VIEW_DIRECTORY or lItem[u'mode'] == Mode.START:
                     totalItems = 0
                     print(totalItems)
@@ -1967,8 +1930,9 @@ class Main:
                 except KeyError:
                     xbmc.log('Skipping %s probably has unicode' % info_value.encode('utf-8'))
         params.append('mode=' + str(item[u'mode']))
-        print(item)
-        return '&'.join(params)
+        tmp_attr = '&'.join(params)
+#        print(tmp_attr)
+        return tmp_attr
 
     def decodeUrl(self, url):
         item = {}
@@ -1983,8 +1947,8 @@ class Main:
             item[u'mode'] = int(item[u'mode'])
         return item
 
-    def saveList(self, directory, filename, items, Listname, List_dict = None):
-        f = open(str(os.path.join(directory, filename)), 'w')
+    def saveList(self, directory, filename, items, Listname, List_dict = None, mode = 'w'):
+        f = open(str(os.path.join(directory, filename)), mode)
         Listname = u'#' + Listname.center(54) + u'#\n'
         f.write(u'########################################################\n')
         f.write(Listname)
