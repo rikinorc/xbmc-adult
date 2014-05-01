@@ -1,3 +1,26 @@
+[B]Version 1.7.82[/B]
+
+- Updated: hardsextube
+- Fixed: video regex
+- Updated: slutload
+- Fixed: video regex
+- Updated: timtube
+- Fixed: video regex
+- Fixed: catcher
+
+[B]Version 1.7.81[/B]
+
+- Updated: empflix
+- Fixed: video regex
+- Updated: freehdporn
+- Fixed: video regex
+- Fixed: catcher
+
+[B]Version 1.7.80[/B]
+
+- Updated: pornhub
+- Fixed: video regex
+
 [B]Version 1.7.79[/B]
 
 - Updated: tnaflix
