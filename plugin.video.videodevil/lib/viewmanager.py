@@ -22,6 +22,9 @@ resDir = sys.modules["__main__"].resDir
 imgDir = sys.modules["__main__"].imgDir
 catDir = sys.modules["__main__"].catDir
 
+if mode == u'VIEW_RSS' or mode == u'VIEW_SEARCH' or mode == u'VIEW_RSS_DIRECTORY':
+    from lib.remoteparser import getHTML, loadRemote
+
 sort_dict = {
     u'label' : xbmcplugin.SORT_METHOD_LABEL, 
     u'size' : xbmcplugin.SORT_METHOD_SIZE, 
@@ -34,12 +37,9 @@ sort = [u'label', u'genre']
 class viewManager:
     def __init__(self, handle, lItem):
         self.handle = handle
-        if mode == u'VIEW_DIRECTORY' or mode == u'START':
-            self.links = None
-        else:
-            self.site = None
-            from lib.remoteparser import loadRemote
-            self.loadRemote = loadRemote
+        self.links = None
+        self.site = None
+
         self.result = self.parseView(lItem)
 
     def parseView(self, lItem):
@@ -53,7 +53,7 @@ class viewManager:
             else:
                 self.site = localParser.loadLocal(lItem)
             sort.extend(self.site.sort)
-            self.loadRemote(self.site, lItem)
+            loadRemote(*getHTML(self.site, lItem))
         elif mode == u'VIEW_DIRECTORY' or mode == u'START':
             self.links = localParser.loadLocal(lItem)
         for sort_method in sort:
