@@ -112,10 +112,10 @@ def getHTML(site, lItem):
         try:
             handle = urlopen(req)
         except:
-            print('Failed to open "%s," url is invalid' % site.start)
+            print('Failed to open "%s", url is invalid' % site.start)
             if enable_debug:
                 traceback.print_exc(file = sys.stdout)
-            return
+            return 'Skipping due to failure'
         data = handle.read()
     except IOError:
         if enable_debug:
@@ -377,7 +377,11 @@ class ThreadUrl(threading.Thread):
                 self.not_finished = False
                 print('killing thread')
             else:
-                self.out_queue.put(getHTML(site, lItem))
+                results = getHTML(site, lItem)
+                if isinstance(results, str) and results == 'Skipping due to failure':
+                    print('Skipping due to failure')
+                else:
+                    self.out_queue.put(results)
             self.queue.task_done()
 
 class DatamineThread(threading.Thread):
@@ -389,7 +393,8 @@ class DatamineThread(threading.Thread):
 
     def run(self):
         while self.not_finished:
-            loadRemote(*self.out_queue.get())
+            args = self.out_queue.get()
+            loadRemote(*args)
             self.out_queue.task_done()
 
 

@@ -39,26 +39,14 @@ class viewManager:
         self.handle = handle
         self.links = None
         self.site = None
-
         self.result = self.parseView(lItem)
 
     def parseView(self, lItem):
         #loadLocal
         if mode == u'VIEW_RSS' or mode == u'VIEW_SEARCH' or mode == u'VIEW_RSS_DIRECTORY':
-            if lItem[u'url'] != lItem[u'cfg']:
-                self.site = localParser.loadLocal(lItem)
-                if lItem[u'type'] == u'search':
-                    lItem[u'url'] = lItem[u'url'] % getSearchPhrase()
-                self.site.start = lItem[u'url']
-            else:
-                self.site = localParser.loadLocal(lItem)
+            self.site = localParser.load_site(lItem)
             sort.extend(self.site.sort)
-            loadRemote(*getHTML(self.site, lItem))
-        elif mode == u'VIEW_DIRECTORY' or mode == u'START':
-            self.links = localParser.loadLocal(lItem)
-        for sort_method in sort:
-            xbmcplugin.addSortMethod(handle = self.handle, sortMethod = sort_dict[sort_method])
-        if mode == u'VIEW_RSS' or mode == u'VIEW_SEARCH' or mode == u'VIEW_RSS_DIRECTORY':
+            loadRemote(*getHTML(localParser.site, lItem))
             try:
                 totalItems = len(self.site.items[u'video']) + len(self.site.items) + len(self.site.links) - 1
             except:
@@ -77,9 +65,11 @@ class viewManager:
                     saveList(cacheDir, filename, infos[u'title'].strip(u' '), items)
                     tmp = {
                         u'title': infos[u'title'],
-                        u'url': filename,
                         u'type': infos[u'type'],
-                        u'icon': infos[u'icon']
+                        u'genre': u' Directory',
+                        u'director': u'VideoDevil',
+                        u'icon': infos[u'icon'],
+                        u'url': filename
                     }
                     addListItem(mode.selectLinkMode(inheritInfos(tmp, lItem)), totalItems)
             for type, infos, items in self.site.links.files():
@@ -87,19 +77,24 @@ class viewManager:
                     for item in items:
                         addListItem(mode.selectLinkMode(item), totalItems)
         elif mode == u'VIEW_DIRECTORY':
-                totalItems = len(self.links)
-                for link in self.links:
-                    addListItem(mode.selectLinkMode(link), totalItems)
+            localParser.load_links(lItem)
+            totalItems = len(localParser.links)
+            for link in localParser.links:
+                addListItem(mode.selectLinkMode(link), totalItems)
         elif mode == u'START':
-            totalItems = len(self.links)
+            localParser.load_links(lItem)
+            totalItems = len(localParser.links)
             tmp = {
                 u'title': u' All Sites',
                 u'type': u'rss',
+                u'genre': u' Directory',
                 u'director': u'VideoDevil',
                 u'icon': os.path.join(imgDir, 'face_devil_grin.png'),
                 u'url': u'sites.list'
             }
             addListItem(mode.selectLinkMode(inheritInfos(tmp, lItem)), totalItems)
-            for link in self.links:
+            for link in localParser.links:
                 addListItem(mode.selectLinkMode(link), totalItems)
+        for sort_method in sort:
+            xbmcplugin.addSortMethod(handle = self.handle, sortMethod = sort_dict[sort_method])
         return 0

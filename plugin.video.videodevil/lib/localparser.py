@@ -9,6 +9,7 @@ from lib.common import smart_unicode, inheritInfos
 from lib.entities.CItemTypes import CItemTypes
 
 from lib.utils.fileUtils import smart_read_file, getFileExtension
+from lib.utils.xbmcUtils import getSearchPhrase
 
 mode = sys.modules["__main__"].mode
 addon = sys.modules["__main__"].addon
@@ -106,271 +107,262 @@ class CRuleSite:
             txt.append(str(self.items))
         return u'\n'.join(txt)
 
+
+
+def loadLocal(lItem, search_phrase = None):
+    def loadKey(txt):
+        return keys[-1] == txt and keys.pop()
+    site = None
+    links = []
+    keys, values = loadFile(lItem)
+    ext = getFileExtension(lItem[u'url'])
+    if ext == u'cfg' or ext == u'list':
+        filename = lItem[u'url']
+        if ext == u'cfg' and u'cfg' not in lItem:
+            lItem[u'cfg'] = filename
+    else:
+        filename = lItem[u'cfg']
+    if u'type' in lItem and lItem[u'type'] == u'search' and search_phrase == None:
+        print(lItem)
+        print('search_phrase = "%s"' % search_phrase)
+        search_phrase = getSearchPhrase()
+    while keys:
+        old_line = len(keys)
+        while keys and keys[-1].startswith(u'site_'):
+            old_line = len(keys)
+            if loadKey(u'site_start'):
+                site = CRuleSite()
+                if ext == u'cfg':
+                    site.start = values.pop()
+                else:
+                    if lItem[u'type'] == u'search':
+                        lItem[u'url'] = lItem[u'url'] % search_phrase
+                    site.start = lItem[u'url']
+                    del values[-1]
+                if site.cfg == None and ext == u'cfg':
+                    site.cfg = filename
+                elif u'cfg' in lItem:
+                    site.cfg = lItem[u'cfg']
+            if loadKey(u'site_header'):
+                site.txheaders.extend(values.pop().split(u'|'))
+            if loadKey(u'site_skill'):
+                site.skill = values.pop()
+                skill_file = filename[:filename.find(u'.')] + u'.lnk'
+                if site.skill.find(u'redirect') != -1:
+                    try:
+                        f = open(str(os.path.join(resDir, skill_file)), 'r')
+                        forward_cfg = f.read()
+                        f.close()
+                        if forward_cfg != filename:
+                            return loadLocal(forward_cfg, lItem)
+#                            return site
+                    except:
+                        pass
+                elif site.skill.find(u'store') != -1:
+                    f = open(str(os.path.join(resDir, skill_file)), 'w')
+                    f.write(filename)
+                    f.close()
+            if loadKey(u'site_sort'):
+                if values[-1].find(u'|') != -1:
+                    site.sort.extend(values.pop().split(u'|'))
+                else:
+                    site.sort.append(values.pop())
+            if loadKey(u'site_startRE'):
+                site.startRE = values.pop()
+            if loadKey(u'site_cfg'):
+                site.cfg = values.pop()
+            if len(keys) == old_line:
+                log('Syntax Error: "%s" is invalid.' % filename)
+                del keys[-1]
+        while keys and keys[-1].startswith(u'item_'):
+            old_line = len(keys)
+            if loadKey(u'item_infos'):
+                rule_tmp = CRuleItem()
+                rule_tmp.infos = values.pop()
+            if loadKey(u'item_order'):
+                if values[-1].find(u'|') != -1:
+                    rule_tmp.order.extend(values.pop().split(u'|'))
+                else:
+                    rule_tmp.order.append(values.pop())
+            if loadKey(u'item_skill'):
+                rule_tmp.skill = values.pop()
+            if loadKey(u'item_curr'):
+                rule_tmp.curr = values.pop()
+            if loadKey(u'item_type'):
+                rule_tmp.type = values.pop()
+            while keys and keys[-1].startswith(u'item_info_'):
+                old_line = len(keys)
+                if loadKey(u'item_info_name'):
+                    info_tmp = CItemInfo()
+                    if values[-1].startswith(u'video.devil.context'):
+                        values[-1] = u'context.' + __language__(int(values[-1][20:]))
+                    info_tmp.name = values.pop()
+                if loadKey(u'item_info_from'):
+                    info_tmp.src = values.pop()
+                if loadKey(u'item_info'):
+                    info_tmp.rule = values.pop()
+                if loadKey(u'item_info_default'):
+                    info_tmp.default = values.pop()
+                if loadKey(u'item_info_build'):
+                    if values[-1].startswith(u'video.devil.'):
+                        if values[-1].startswith(u'video.devil.locale'):
+                            values[-1] = u'  ' + __language__(int(values[-1][19:])) + u'  '
+                        elif values[-1].startswith(u'video.devil.image'):
+                            values[-1] = os.path.join(imgDir, values[-1][18:])
+                    info_tmp.build = values.pop()
+                    rule_tmp.info_list.append(info_tmp)
+                    info_tmp = None
+                if len(keys) == old_line:
+                    log('Syntax Error: "%s" is invalid.' % filename)
+                    del keys[-1]
+            if loadKey(u'item_infos_actions'):
+                if values[-1].find(u'|') != -1:
+                    rule_tmp.actions.extend(values.pop().split(u'|'))
+                else:
+                    rule_tmp.actions.append(values.pop())
+            if loadKey(u'item_url_build'):
+                rule_tmp.url_build = values.pop()
+                site.rules.append(rule_tmp)
+                rule_tmp = None
+            if len(keys) == old_line:
+                log('Syntax Error: "%s" is invalid.' % filename)
+                del keys[-1]
+        while keys and keys[-1].startswith(u'link_'):
+            old_line = len(keys)
+            if loadKey(u'link_title'):
+                tmp = {}
+                if values[-1].startswith(u'video.devil.locale'):
+                    values[-1] = u'  ' + __language__(int(values[-1][19:])) + u'  '
+                tmp[u'title'] = values.pop()
+            while tmp != None and keys[-1] != u'link_url':
+                if values[-1].startswith(u'video.devil.image'):
+                    values[-1] = os.path.join(imgDir, values[-1][18:])
+                tmp[keys[-1][5:]] = values.pop()
+                del keys[-1]
+            if loadKey(u'link_url'):
+                tmp[u'url'] = values.pop()
+                if lItem != None:
+                    tmp = inheritInfos(tmp, lItem)
+                if (u'cfg' not in tmp) and getFileExtension(tmp[u'url']) == u'cfg':
+                    tmp[u'cfg'] = tmp[u'url']
+                if filename == u'sites.list':
+                    if addon.getSetting(tmp[u'title']) == 'true':
+                        links.append(tmp)
+                else:
+                    if site != None:
+                        site.links[tmp[u'type']] = (tmp, [tmp])
+                    else:
+                        links.append(tmp)
+                tmp = None
+                break
+            if len(keys) == old_line:
+                log('Syntax Error: "%s" is invalid.' % filename)
+                del keys[-1]
+        if len(keys) == old_line:
+            log('Syntax Error: "%s" is invalid.' % filename)
+            del keys[-1]
+    if site != None:
+        print('returning site')
+        return site
+    print('returning links')
+    return links
+
+def loadFile(lItem):
+    ext = getFileExtension(lItem[u'url'])
+    if ext == u'cfg' or ext == u'list':
+        filename = lItem[u'url']
+    else:
+        filename = lItem[u'cfg']
+    for directory in [catDir, resDir, cacheDir, allsitesDir, '']:
+        try:
+            filepath = os.path.join(directory, filename)
+            f = open(filepath, 'r')
+            break
+        except:
+            if directory == '':
+                traceback.print_exc(file = sys.stdout)
+                log('File Not Found: "%s"' % filename)
+                raise
+    data = f.read()
+    f.close()
+    data = smart_unicode(data).replace(u'\r\n', u'\n').split(u'\n')
+    keys = []
+    values = []
+    for line in data:
+        if line and not line.startswith(u'#'):
+            key, value = line.split(u'=', 1)
+            keys.append(key)
+            values.append(value)
+    keys.reverse()
+    values.reverse()
+    return keys, values
+
 class localParser:
     def __init__(self):
-        self.lItem = None
         self.all_cfg_items = None
         self.cfg_items_in_list = []
         self.cfg_items_not_in_list = []
-        self.ext = None
-        self.filename = None
         self.search_phrase = None
-        self.keys = []
-        self.values = []
         self.site = None
-        self.rule_tmp = None
-        self.info_tmp = None
-        self.tmp = None
         self.sites = []
         self.links = []
 
     def resetLinks(self):
-        self.links = []
-        return None
+        tmp = []
+        tmp, self.links = self.links, tmp
+        return tmp
 
     def resetSites(self):
-        self.Sites = []
-        return None
-
-    def resetFiles(self):
-        self.files = []
-        self.keys = []
-        self.values = []
-        return None
+        tmp = []
+        tmp, self.sites = self.sites, tmp
+        return tmp
 
     def reset(self):
         self.resetLinks()
         self.resetSites()
-        self.resetFiles()
         return None
 
-    def load_all_cfg_list(self, lItem = {'url': u'sites.list'}):
-        self.all_cfg_items = self.loadLocal(lItem)
+    def load_site(self, lItem = {'url': u'sites.list'}):
+        self.site = loadLocal(lItem)
+        return self.site
 
-    def load_list(self, lItem):
-        self.load_all_cfg_list()
-        if lItem[u'url'] != u'sites.list':
-            self.resetLinks()
-            self.loadLocal(lItem)
+    def load_links(self, lItem = {'url': u'sites.list'}):
+        self.links = loadLocal(lItem)
         return self.links
 
-    def load_sites_in_list(self, lItem = None):
-        cfgs_in_list = set([link[u'cfg'] for link in self.links])
-        self.cfg_items_not_in_list = [item for item in self.all_cfg_items if item[u'url'] not in cfgs_in_list]
-        return [(self.loadLocal(item), item) for item in self.links]
+    def load_all_sites_links(self, lItem = {'url': u'sites.list'}):
+        self.all_sites_links = loadLocal(lItem)
+        return None
 
-    def load_sites_not_in_list(self, lItem = None):
-        sites = []
-        cfgs_in_list = set([link[u'cfg'] for link in self.links])
-        self.cfg_items_in_list = [item for item in self.all_cfg_items if item[u'url'] in cfgs_in_list]
-        self.cfg_items_not_in_list = [item for item in self.all_cfg_items if item[u'url'] not in cfgs_in_list]
-        for item in self.cfg_items_not_in_list:
-            site = self.loadLocal(item)
-            for type, infos, items in site.links.files():
+    def load_links_and_all_sites_links(self, lItem):
+        load_all_sites_links()
+        load_links(lItem)
+        return None
+
+    def load_links_and_sites_in_list(self, lItem):
+        self.load_links(lItem)
+        if lItem[u'type'] == u'category':
+            sites_in_list = set([link[u'cfg'] for link in self.links])
+            search_links = loadLocal({'url': u'search.list'})
+            search_as_category_links = [link for link in search_links if link[u'cfg'] not in sites_in_list]
+            search_phrase = lItem[u'title'].strip().lower()
+            search_as_category_sites = [loadLocal(link, search_phrase) for link in search_as_category_links]
+            sites = map(loadLocal, self.links) + search_as_category_sites
+            self.links += search_as_category_links
+            self.sites = zip(sites, self.links)
+        else:
+            self.sites = zip(map(loadLocal, self.links), self.links)
+        return None
+
+    def load_links_and_sites_not_in_list(self, lItem):
+        self.load_links_and_all_sites_links(lItem)
+        sites_in_list = set([link[u'cfg'] for link in self.links])
+        self.cfg_links_not_in_list = [link for link in self.all_sites_links if link[u'cfg'] not in sites_in_list]
+        for link in self.cfg_links_not_in_list:
+            site = loadLocal(link)
+            for type, infos, links in site.links.files():
                 if type == self.links[0][u'type']:
-                    site.start = items[0][u'url']
-                    sites.append((site, items[0]))
+                    site.start = links[0][u'url']
+                    self.sites.append((site, links[0]))
                     break
-        return sites
-
-    def loadLocal(self, lItem):
-        self.loadFile(lItem)
-        ext = getFileExtension(lItem[u'url'])
-        if ext == u'cfg' or ext == u'list':
-            filename = lItem[u'url']
-            if ext == u'cfg' and u'cfg' not in lItem:
-                lItem[u'cfg'] = filename
-        else:
-            filename = lItem[u'cfg']
-        if u'type' in lItem and lItem[u'type'] == u'search' and not self.search_phrase:
-            self.search_phrase = getSearchPhrase()
-        while self.keys:
-            old_line = len(self.keys)
-            while self.keys and self.keys[-1].startswith(u'site_'):
-                old_line = len(self.keys)
-                if self.loadKey(u'site_start'):
-                    if self.site != None:
-                        self.sites.append(self.site)
-                    self.site = CRuleSite()
-                    if ext == u'cfg': #fix when allsites.list is removed
-                        self.site.start = self.values.pop()
-                    else:
-                        if lItem[u'type'] == u'search':
-                            lItem[u'url'] = lItem[u'url'] % self.search_phrase
-                        self.site.start = lItem[u'url']
-                        del self.values[-1]
-                    if self.site.cfg == None and ext == u'cfg':
-                        self.site.cfg = filename
-                    elif u'cfg' in lItem:
-                        self.site.cfg = lItem[u'cfg']
-                if self.loadKey(u'site_header'):
-                    self.site.txheaders.extend(self.values.pop().split(u'|'))
-                if self.loadKey(u'site_skill'):
-                    self.site.skill = self.values.pop()
-                    skill_file = filename[:filename.find(u'.')] + u'.lnk'
-                    if self.site.skill.find(u'redirect') != -1:
-                        try:
-                            f = open(str(os.path.join(resDir, skill_file)), 'r')
-                            forward_cfg = f.read()
-                            f.close()
-                            if forward_cfg != filename:
-                                return self.loadLocal(forward_cfg, lItem)
-#                            return self.site
-                        except:
-                            pass
-                    elif self.site.skill.find(u'store') != -1:
-                        f = open(str(os.path.join(resDir, skill_file)), 'w')
-                        f.write(filename)
-                        f.close()
-                if self.loadKey(u'site_sort'):
-                    if self.values[-1].find(u'|') != -1:
-                        self.site.sort.extend(self.values.pop().split(u'|'))
-                    else:
-                        self.site.sort.append(self.values.pop())
-                if self.loadKey(u'site_startRE'):
-                    self.site.startRE = self.values.pop()
-                if self.loadKey(u'site_cfg'):
-                    self.site.cfg = self.values.pop()
-                if len(self.keys) == old_line:
-                    log('Syntax Error: "%s" is invalid.' % filename)
-                    del self.keys[-1]
-            while self.keys and self.keys[-1].startswith(u'item_'):
-                old_line = len(self.keys)
-                if self.loadKey(u'item_infos'):
-                    self.rule_tmp = CRuleItem()
-                    self.rule_tmp.infos = self.values.pop()
-                if self.loadKey(u'item_order'):
-                    if self.values[-1].find(u'|') != -1:
-                        self.rule_tmp.order.extend(self.values.pop().split(u'|'))
-                    else:
-                        self.rule_tmp.order.append(self.values.pop())
-                if self.loadKey(u'item_skill'):
-                    self.rule_tmp.skill = self.values.pop()
-                if self.loadKey(u'item_curr'):
-                    self.rule_tmp.curr = self.values.pop()
-                if self.loadKey(u'item_type'):
-                    self.rule_tmp.type = self.values.pop()
-                while self.keys and self.keys[-1].startswith(u'item_info_'):
-                    old_line = len(self.keys)
-                    if self.loadKey(u'item_info_name'):
-                        self.info_tmp = CItemInfo()
-                        self.info_tmp.name = self.values.pop()
-                    if self.loadKey(u'item_info_from'):
-                        self.info_tmp.src = self.values.pop()
-                    if self.loadKey(u'item_info'):
-                        self.info_tmp.rule = self.values.pop()
-                    if self.loadKey(u'item_info_default'):
-                        self.info_tmp.default = self.values.pop()
-                    if self.loadKey(u'item_info_build'):
-                        self.info_tmp.build = self.values.pop()
-                        self.rule_tmp.info_list.append(self.info_tmp)
-                        self.info_tmp = None
-                    if len(self.keys) == old_line:
-                        log('Syntax Error: "%s" is invalid.' % filename)
-                        del self.keys[-1]
-                if self.loadKey(u'item_infos_actions'):
-                    if self.values[-1].find(u'|') != -1:
-                        self.rule_tmp.actions.extend(self.values.pop().split(u'|'))
-                    else:
-                        self.rule_tmp.actions.append(self.values.pop())
-                if self.loadKey(u'item_url_build'):
-                    self.rule_tmp.url_build = self.values.pop()
-                    self.site.rules.append(self.rule_tmp)
-                    self.rule_tmp = None
-                if len(self.keys) == old_line:
-                    log('Syntax Error: "%s" is invalid.' % filename)
-                    del self.keys[-1]
-            while self.keys and self.keys[-1].startswith(u'link_'):
-                old_line = len(self.keys)
-                if self.loadKey(u'link_title'):
-                    self.tmp = {}
-                    self.tmp[u'title'] = self.values.pop()
-                if self.keys[-1].startswith(u'link_') and self.keys != u'link_url':
-                    self.tmp[self.keys[-1][5:]] = self.values.pop()
-                    del self.keys[-1]
-                if self.loadKey(u'link_url'):
-                    self.tmp[u'url'] = self.values.pop()
-                    if lItem != None:
-                        self.tmp = inheritInfos(self.tmp, lItem)
-                    if (u'cfg' not in self.tmp) and getFileExtension(self.tmp[u'url']) == u'cfg':
-                        self.tmp[u'cfg'] = self.tmp[u'url']
-                    if filename == u'sites.list':
-                        if addon.getSetting(self.tmp[u'title']) == 'true':
-                            self.links.append(self.tmp)
-                    else:
-                        if self.site != None:
-                            self.site.links[self.tmp[u'type']] = (self.tmp, [self.tmp])
-                        else:
-                            self.links.append(self.tmp)
-                    self.tmp = None
-                    break
-                if len(self.keys) == old_line:
-                    log('Syntax Error: "%s" is invalid.' % filename)
-                    del self.keys[-1]
-            if len(self.keys) == old_line:
-                log('Syntax Error: "%s" is invalid.' % filename)
-                del self.keys[-1]
-        if self.site != None:
-            self.sites.append(self.site)
-            self.site = None
-            print('returning site')
-            return self.sites[-1]
-        print('returning links')
-        return self.links
-
-    def loadFile(self, lItem, shortcuts = True):
-        ext = getFileExtension(lItem[u'url'])
-        if ext == u'cfg' or ext == u'list':
-            filename = lItem[u'url']
-        else:
-            filename = lItem[u'cfg']
-        for directory in [catDir, resDir, cacheDir, allsitesDir, '']:
-            try:
-                filepath = os.path.join(directory, filename)
-                f = open(filepath, 'r')
-                break
-            except:
-                if directory == '':
-                    traceback.print_exc(file = sys.stdout)
-                    log('File Not Found: "%s"' % filename)
-                    return None
-        keys = []
-        values = []
-        for line in f:
-            line =  smart_unicode(line)
-            if line and line.startswith(u'#'):
-                continue
-            try:
-                line = line.replace(u'\r\n', u'').replace(u'\n', u'')
-            except:
-                continue
-            try:
-                k, v = line.split(u'=', 1)
-            except:
-                continue
-            if shortcuts and v.startswith(u'video.devil.'):
-                idx = v.find(u'|')
-                if v[:idx] == u'video.devil.locale':
-                    v = u'  ' + __language__(int(v[idx+1:])) + u'  '
-                elif v[:idx] == u'video.devil.image':
-                    v = os.path.join(imgDir, v[idx+1:])
-                elif v[:idx] == u'video.devil.context':
-                    v = u'context.' + __language__(int(v[idx+1:]))
-            keys.append(k)
-            values.append(v)
-        f.close()
-        keys.reverse()
-        values.reverse()
-        self.keys += keys
-        self.values += values
-        self.site = None
-        self.rule_tmp = None
-        self.info_tmp = None
-        self.tmp = None
         return None
-
-    def loadKey(self, txt):
-        if self.keys[-1] == txt:
-            del self.keys[-1]
-            return True
-        return False

@@ -132,8 +132,8 @@ try:
                 from lib.viewallmanager import viewallManager
                 result = viewallManager(handle, lItem).result
         if result == 0:
-            if int(addon.getSetting('list_view')) == 0:
-                xbmc.executebuiltin("Container.SetViewMode(500)")
+#            if int(addon.getSetting('list_view')) == 0:
+#                xbmc.executebuiltin("Container.SetViewMode(500)")
             xbmcplugin.endOfDirectory(int(sys.argv[1]))
             xbmc.log('End of directory')
         elif result == -2:
