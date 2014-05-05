@@ -35,9 +35,9 @@ class CItemTypes(object):
         txt = []
         for items in self.items_list:
             for item in items:
-                txt.append(u'link_title=%s' % item[u'title'])
-                txt.extend([u'='.join([u'link_%s' % k, str(v)]) for k,v in item.iteritems() if k != u'title' if k != u'url'])
-                txt.append(u'link_url=%s' % item[u'url'])
+                txt.append('link_title=%s' % item['title'])
+                txt.extend(['='.join(['link_%s' % k, str(v)]) for k,v in item.iteritems() if k != 'title' if k != 'url'])
+                txt.append('link_url=%s' % item['url'])
         return '\n'.join(txt)
 
     def files(self):

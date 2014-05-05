@@ -17,7 +17,7 @@ import lib.remoteparser as remoteparser
 from lib.entities.CItemTypes import CItemTypes
 
 from lib.utils.fileUtils import clean_filename, saveList
-from lib.utils.xbmcUtils import getSearchPhrase, addListItem
+from lib.utils.xbmcUtils import getSearchPhrase, addListItem, infoFormatter
 
 mode = sys.modules["__main__"].mode
 addon = sys.modules["__main__"].addon
@@ -31,18 +31,18 @@ imgDir = sys.modules["__main__"].imgDir
 catDir = sys.modules["__main__"].catDir
 
 sort_dict = {
-    u'label' : xbmcplugin.SORT_METHOD_LABEL, 
-    u'size' : xbmcplugin.SORT_METHOD_SIZE, 
-    u'duration' : xbmcplugin.SORT_METHOD_DURATION, 
-    u'genre' : xbmcplugin.SORT_METHOD_GENRE, 
-    u'rating' : xbmcplugin.SORT_METHOD_VIDEO_RATING, 
-    u'date' : xbmcplugin.SORT_METHOD_DATE
+    'label' : xbmcplugin.SORT_METHOD_LABEL, 
+    'size' : xbmcplugin.SORT_METHOD_SIZE, 
+    'duration' : xbmcplugin.SORT_METHOD_DURATION, 
+    'genre' : xbmcplugin.SORT_METHOD_GENRE, 
+    'rating' : xbmcplugin.SORT_METHOD_VIDEO_RATING, 
+    'date' : xbmcplugin.SORT_METHOD_DATE
 }
 
 class viewallManager:
     def __init__(self, handle, lItem):
         self.handle = handle
-        self.sort = [u'label', u'genre']
+        self.sort = ['label', 'genre']
         self.sites = []
         self.items = CItemTypes()
         self.links = CItemTypes()
@@ -52,7 +52,7 @@ class viewallManager:
         keys = []
         Dict = {}
         for item in List:
-            keys.append(item[u'title'])
+            keys.append(item['title'])
         for i in range(len(keys)):
             key = keys.pop().lower().strip()
             value = List.pop()
@@ -78,79 +78,79 @@ class viewallManager:
     def parseViewAll(self, lItem):
         #loadLocal
         start = time.time()
-        if mode == u'VIEWALL_RSS' or mode == u'VIEWALL_SEARCH':
-            self.sites = localParser.load_links_and_sites_in_list(lItem)
+        if mode == 'VIEWALL_RSS' or mode == 'VIEWALL_SEARCH':
+            localParser.load_links_and_sites_in_list(lItem)
             print "Elapsed Time: %s" % (time.time() - start)
-            remoteparser.main(self.sites)
+            remoteparser.main(localParser.sites)
             xbmc.log('Parsing complete')
             start = time.time()
-            for (site, item) in self.sites:
+            for (site, item) in localParser.sites:
                 for type, infos, items in site.items.files():
                     self.items[type] = (infos, items)
             try:
-                totalItems = len(self.items[u'video']) + len(self.items) - 1
+                totalItems = len(self.items['video']) + len(self.items) - 1
             except:
                 try:
-                    totalItems = len(self.items[lItem[u'type']]) + len(self.items) - 1
-                    if lItem[u'type'] in self.items:
+                    totalItems = len(self.items[lItem['type']]) + len(self.items) - 1
+                    if lItem['type'] in self.items:
                         totalItems -= 1
                 except:
                     totalItems = len(self.items)
             for type, infos, items in self.items.files():
-                if type == u'video':
+                if type == 'video':
                     for item in items:
-                        addListItem(mode.selectItemMode(item), totalItems)
+                        addListItem(mode.selectItemMode(infoFormatter(item)), totalItems)
                 else:
-                    filename = clean_filename(infos[u'type'].strip(u' ') + u'.list')
-                    if type == u'next':
-                        saveList(cacheDir, filename, infos[u'title'].strip(u' '), items)
+                    filename = clean_filename(infos['type'].strip(' ') + '.list')
+                    if type == 'next':
+                        saveList(cacheDir, filename, infos['title'].strip(' '), map(infoFormatter, items))
                     elif not os.path.exists(os.path.join(allsitesDir, filename)):
-                        saveList(allsitesDir, filename, infos[u'title'].strip(u' '), items)
+                        saveList(allsitesDir, filename, infos['title'].strip(' '), map(infoFormatter, items))
                     tmp = {
-                        u'title': infos[u'title'],
-                        u'type': infos[u'type'],
-                        u'icon': infos[u'icon'],
-                        u'url': filename
+                        'title': infos['title'],
+                        'type': infos['type'],
+                        'icon': infos['icon'],
+                        'url': filename
                     }
                     addListItem(mode.selectLinkMode(inheritInfos(tmp, lItem)), totalItems)
-        elif mode == u'VIEWALL_DIRECTORY':
+        elif mode == 'VIEWALL_DIRECTORY':
             localParser.load_links_and_sites_not_in_list(lItem)
             print "Elapsed Time: %s" % (time.time() - start)
-            fileDir = os.path.join(allsitesDir, lItem[u'type'].strip(u' '))
+            fileDir = os.path.join(allsitesDir, lItem['type'].strip(' '))
             if not os.path.exists(fileDir):
                 os.mkdir(fileDir)
                 remoteparser.main(localParser.sites)
                 xbmc.log('Parsing complete')
                 start = time.time()
                 tmp_items = []
-                for (site, item) in self.sites:
-                    if lItem[u'type'] in site.items:
-                            tmp_items += site.items[lItem[u'type']]
-                self.createDirs(tmp_items + localParser.links)
+                for (site, item) in localParser.sites:
+                    if lItem['type'] in site.items:
+                            tmp_items += site.items[lItem['type']]
+                self.createDirs(map(infoFormatter, tmp_items) + localParser.links)
                 totalItems = len(self.links)
                 tmp_items = []
                 for item_title, infos, item_value in self.links.files():
-                    filename = clean_filename(lItem[u'type'].strip(u' ') + u'.' + item_title.strip(u' ') + u'.list')
+                    filename = clean_filename(lItem['type'].strip(' ') + '.' + item_title.strip(' ') + '.list')
                     saveList(fileDir, filename, item_title.strip(), item_value)
                     tmp = {
-                        u'title': capitalize(item_title),
-                        u'type': infos[u'type'],
-                        u'icon': infos[u'icon'],
-                        u'url': os.path.join(fileDir, filename)
+                        'title': capitalize(item_title),
+                        'type': infos['type'],
+                        'icon': infos['icon'],
+                        'url': os.path.join(fileDir, filename)
                     }
                     tmp_items.append(tmp)
                     addListItem(mode.selectLinkMode(inheritInfos(tmp, lItem)), totalItems)
                 if tmp_items:
-                    saveList(allsitesDir, lItem[u'type'].strip(u' ') + u'.list', lItem[u'title'].strip(u' '), tmp_items)
+                    saveList(allsitesDir, lItem['type'].strip(' ') + '.list', lItem['title'].strip(' '), tmp_items)
             else:
                 totalItems = len(localParser.links)
                 for link in localParser.links:
                     addListItem(mode.selectLinkMode(inheritInfos(link, lItem)), totalItems)
         tmp = {
-            u'title': u'  ' + __language__(30102) + u'  ',
-            u'type': u'search',
-            u'icon': os.path.join(imgDir, 'search.png'),
-            u'url': u'search.list'
+            'title': '  ' + __language__(30102) + '  ',
+            'type': 'search',
+            'icon': os.path.join(imgDir, 'search.png'),
+            'url': 'search.list'
         }
         addListItem(mode.selectLinkMode(inheritInfos(tmp, lItem)), totalItems)
         for sort_method in self.sort:

@@ -3,7 +3,7 @@ import xbmc, xbmcaddon
 xbmc.log('Initializing VideoDevil')
 
 addon = xbmcaddon.Addon(id='plugin.video.videodevil')
-if addon.getSetting('enable_debug') == u'true':
+if addon.getSetting('enable_debug') == 'true':
     enable_debug = True
     xbmc.log('VideoDevil debug logging enabled')
 else:
@@ -21,7 +21,7 @@ __credits__ = 'bootsy'
 __version__ = '1.7.37'
 __language__ = addon.getLocalizedString
 rootDir = addon.getAddonInfo('path')
-if rootDir[-1] == u';':
+if rootDir[-1] == ';':
     rootDir = rootDir[0:-1]
 rootDir = xbmc.translatePath(rootDir)
 settingsDir = addon.getAddonInfo('profile')
@@ -48,15 +48,15 @@ xbmc.log('VideoDevil initialized')
 def decodeUrl(url):
     item = {}
     if url.find('&') == -1:
-        item[u'url'] = smart_unicode(urllib.unquote(url))
-        item[u'type'] = u'start'
+        item['url'] = urllib.unquote(url)
+        item['type'] = 'start'
     else:
         for info_name_value in url.split('&'):
             info_name, info_value = info_name_value.split('=', 1)
             if info_name == 'mode':
                 mode.setMode(info_value)
             else:
-                item[smart_unicode(info_name)] = smart_unicode(urllib.unquote(info_value))
+                item[info_name] = urllib.unquote(info_value)
     return item
 
 try:
@@ -107,37 +107,37 @@ try:
             'currentView: ' +
             urllib.unquote(repr(params).replace('&', '\n')))
         lItem = decodeUrl(params)
-        if mode == u'PLAY' or mode == u'DOWNLOAD':
+        if mode == 'PLAY' or mode == 'DOWNLOAD':
             from lib.videoparser import CCatcherList
             videoItem = CCatcherList(lItem).videoItem
-            if mode == u'PLAY':
+            if mode == 'PLAY':
                 from lib.utils.videoUtils import playVideo
                 result = playVideo(videoItem)
-            elif mode == u'DOWNLOAD':
+            elif mode == 'DOWNLOAD':
                 from lib.utils.videoUtils import downloadMovie
                 result = downloadMovie(videoItem)
-        elif mode == u'ADD':
-            self.addItem(lItem[u'url'][:-4], lItem)
+        elif mode == 'ADD':
+            self.addItem(lItem['url'][:-4], lItem)
             result = -1
-        elif mode == u'REMOVE':
+        elif mode == 'REMOVE':
             dia = xbmcgui.Dialog()
             if dia.yesno('', __language__(30054)):
-                self.removeItem(lItem[u'url'][:-7])
+                self.removeItem(lItem['url'][:-7])
             result = -2
         else:
-            if mode == u'VIEW_RSS' or mode == u'VIEW_SEARCH' or mode == u'VIEW_RSS_DIRECTORY' or mode == u'VIEW_DIRECTORY':
+            if mode == 'VIEW_RSS' or mode == 'VIEW_SEARCH' or mode == 'VIEW_RSS_DIRECTORY' or mode == 'VIEW_DIRECTORY':
                 from lib.viewmanager import viewManager
                 result = viewManager(handle, lItem).result
-            elif mode == u'VIEWALL_RSS' or mode == u'VIEWALL_SEARCH' or mode == u'VIEWALL_DIRECTORY':
+            elif mode == 'VIEWALL_RSS' or mode == 'VIEWALL_SEARCH' or mode == 'VIEWALL_DIRECTORY':
                 from lib.viewallmanager import viewallManager
                 result = viewallManager(handle, lItem).result
         if result == 0:
-#            if int(addon.getSetting('list_view')) == 0:
-#                xbmc.executebuiltin("Container.SetViewMode(500)")
+            if int(addon.getSetting('list_view')) == 0:
+                xbmc.executebuiltin("Container.SetViewMode(500)")
             xbmcplugin.endOfDirectory(int(sys.argv[1]))
             xbmc.log('End of directory')
         elif result == -2:
-            xbmc.executebuiltin(u'Container.Refresh')
+            xbmc.executebuiltin('Container.Refresh')
 except Exception, e:
     if enable_debug:
         traceback.print_exc(file = sys.stdout)

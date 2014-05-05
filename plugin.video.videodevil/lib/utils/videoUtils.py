@@ -18,15 +18,15 @@ catDir = sys.modules["__main__"].catDir
 
 def playVideo(videoItem):
     print(videoItem)
-    if videoItem[u'url'] == None:
+    if videoItem['url'] == None:
         return
-    url = videoItem[u'url']
-    if u'icon' not in videoItem:
-        videoItem[u'icon'] = os.path.join(imgDir, 'video.png')
-    if u'title' not in videoItem:
-        videoItem[u'title'] = '...'
-    listitem = xbmcgui.ListItem(videoItem[u'title'], videoItem[u'title'], videoItem[u'icon'], videoItem[u'icon'])
-    listitem.setInfo('video', {'Title': videoItem[u'title']})
+    url = videoItem['url']
+    if 'icon' not in videoItem:
+        videoItem['icon'] = os.path.join(imgDir, 'video.png')
+    if 'title' not in videoItem:
+        videoItem['title'] = '...'
+    listitem = xbmcgui.ListItem(videoItem['title'], videoItem['title'], videoItem['icon'], videoItem['icon'])
+    listitem.setInfo('video', {'Title': videoItem['title']})
     for info_name, info_value in videoItem.iteritems():
         try:
             listitem.setInfo(type = 'Video', infoLabels = {info_name: info_value})
@@ -38,12 +38,12 @@ def playVideo(videoItem):
         dia = xbmcgui.Dialog()
         if dia.yesno('', __language__(30052)):
             return downloadMovie(videoItem)
-    if u'player' in videoItem:
-        if videoItem[u'player'] == u'auto':
+    if 'player' in videoItem:
+        if videoItem['player'] == 'auto':
             player_type = xbmc.PLAYER_CORE_AUTO
-        elif videoItem[u'player'] == u'mplayer':
+        elif videoItem['player'] == 'mplayer':
             player_type = xbmc.PLAYER_CORE_MPLAYER
-        elif videoItem[u'player'] == u'dvdplayer':
+        elif videoItem['player'] == 'dvdplayer':
             player_type = xbmc.PLAYER_CORE_DVDPLAYER
     else:
         player_type = {
@@ -52,7 +52,7 @@ def playVideo(videoItem):
             2:xbmc.PLAYER_CORE_DVDPLAYER
         }
         player_type = player_type[int(addon.getSetting('player_type'))]
-    xbmc.Player(player_type).play(str(videoItem[u'url']), listitem)
+    xbmc.Player(player_type).play(str(videoItem['url']), listitem)
     xbmc.sleep(200)
     return -1
 
@@ -60,7 +60,7 @@ def downloadMovie(videoItem):
     from SimpleDownloader import SimpleDownloader
     downloader = SimpleDownloader()
     download_path = addon.getSetting('download_path')
-    if download_path == u'':
+    if download_path == '':
         try:
             download_path = xbmcgui.Dialog().browse(0, __language__(30017), 'files', '', False, False)
             addon.setSetting(id='download_path', value=download_path)
@@ -69,9 +69,9 @@ def downloadMovie(videoItem):
         except:
             pass
     tmp = {
-        'url': videoItem[u'url'],
-        'Title': videoItem[u'title'],
+        'url': videoItem['url'],
+        'Title': videoItem['title'],
         'download_path': download_path
     }
-    downloader.download(clean_filename(videoItem[u'title'].strip(u' ')) + videoItem[u'extension'], tmp)
+    downloader.download(clean_filename(videoItem['title'].strip(' ')) + videoItem['extension'], tmp)
     return -2

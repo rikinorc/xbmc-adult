@@ -53,85 +53,98 @@ def parseActions(item, convActions, url = None):
 #    print('item = ' + str(item))
     for convAction in convActions:
         if convAction.find(u"(") != -1:
-            action = convAction[0:convAction.find(u'(')]
+            action = convAction[0:convAction.find('(')]
 #            print('action = ' + action)
             param = convAction[len(action) + 1:-1]
 #            print('param = ' + param)
-            if param.find(u', ') != -1:
-                params = param.split(u', ')
-                if action == u'replace':
+            if param.find(', ') != -1:
+                params = param.split(', ')
+                if action == 'replace':
                     item[params[0]] = item[params[0]].replace(params[1], params[2])
-                elif action == u'join':
+                elif action == 'join':
                     j = []
                     for i in range(1, len(params)):
                         j.append(item[params[i]])
                     item[params[1]] = params[0].join(j)
-                elif action == u'decrypt':
-                    item[u'match'] = sesame.decrypt(item[params[0]], item[params[1]], 256)
+                elif action == 'decrypt':
+                    item['match'] = sesame.decrypt(item[params[0]], item[params[1]], 256)
             else:
-                if action == u'unquote':
+                if action == 'unquote':
                     item[param] = urllib.unquote(item[param])
-                elif action == u'quote':
+                elif action == 'quote':
                     item[param] = urllib.quote(item[param])
-                elif action == u'decode':
+                elif action == 'decode':
                     item[param] = decode(item[param])
         else:
             action = convAction
-            if action == u'append':
-                item[u'url'] = url + item[u'url']
-            elif action == u'appendparam':
-                if url[-1] == u'?':
-                    item[u'url'] = url + item[u'url']
+            if action == 'append':
+                item['url'] = url + item['url']
+            elif action == 'appendparam':
+                if url[-1] == '?':
+                    item['url'] = url + item['url']
                 else:
-                    item[u'url'] = url + u'&' + item[u'url']
-            elif action == u'replaceparam':
+                    item['url'] = url + '&' + item['url']
+            elif action == 'replaceparam':
                 if url.rfind('?') == -1:
-                    item[u'url'] = url + u'?' + item[u'url']
+                    item['url'] = url + '?' + item['url']
                 else:
-                    item[u'url'] = url[:url.rfind('?')] + u'?' + item[u'url']
-            elif action == u'striptoslash':
-                if url.rfind(u'/'):
-                    idx = url.rfind(u'/')
-                    if url[:idx + 1] == u'http://':
-                        item[u'url'] = url + u'/' + item[u'url']
+                    item['url'] = url[:url.rfind('?')] + '?' + item['url']
+            elif action == 'striptoslash':
+                if url.rfind('/'):
+                    idx = url.rfind('/')
+                    if url[:idx + 1] == 'http://':
+                        item['url'] = url + '/' + item['url']
                     else:
-                        item[u'url'] = url[:idx + 1] + item[u'url']
-#            elif action == u'space':
+                        item['url'] = url[:idx + 1] + item['url']
+#            elif action == 'space':
 #                try:
-#                    item[u'title'] = u'  ' + item[u'title'].strip(u' ') + u'  '
+#                    item['title'] = '  ' + item['title'].strip(' ') + '  '
 #                except:
 #                    pass
     return item
 
 #
 def getHTML(site, lItem):
+    if len(site.txheaders) != 0:
+        txheaders[site.txheaders[0]] = site.txheaders[1]
+    req = Request(site.start, None, txheaders)
     try:
-        if len(site.txheaders) != 0:
-            txheaders[site.txheaders[0]] = site.txheaders[1]
-        req = Request(site.start, None, txheaders)
-        try:
-            handle = urlopen(req)
-        except:
-            print('Failed to open "%s", url is invalid' % site.start)
-            if enable_debug:
-                traceback.print_exc(file = sys.stdout)
-            return 'Skipping due to failure'
-        data = handle.read()
-    except IOError:
+        handle = urlopen(req)
+    except:
+        print('Failed to open "%s", url is invalid' % site.start)
         if enable_debug:
             traceback.print_exc(file = sys.stdout)
-    print('site received')
+        return 'Skipping due to failure'
+    data = handle.read()
+#    print('site received')
     return site, lItem, data
 
 
 def loadRemote(site, lItem, data):
     if enable_debug:
-        f = open(os.path.join(cacheDir, site.cfg + u'.page.html'), 'w')
-        f.write(u'<Title>'+ site.start + u'</Title>\n\n')
+        f = open(os.path.join(cacheDir, site.cfg + '.page.html'), 'w')
+        f.write('<Title>'+ site.start + '</Title>\n\n')
         f.write(data)
         f.close()
-    print('parsing site')
-    status = {}
+#    print('parsing site')
+#    loadRemoteFor(site, lItem, data)
+    loadRemoteWhile(site, lItem, data)
+    return None
+
+# Helper functions for loadRemote
+def loadRemoteFor(site, lItem, data):
+    for item_rule in site.rules:
+        item_rule.infosRE = re.compile(item_rule.infos, re.IGNORECASE + re.DOTALL + re.MULTILINE)
+        for infos_values in item_rule.infosRE.findall(data):
+            itemBuilder(site, item_rule, lItem, site.start, infos_values = infos_values)
+        if item_rule.curr:
+            item_rule.currRE = re.compile(item_rule.curr, re.IGNORECASE + re.DOTALL + re.MULTILINE)
+            for infos_value in item_rule.currRE.findall(data):
+                currBuilder(site, item_rule, lItem, site.start, infos_value = infos_value)
+    return None
+
+def loadRemoteWhile(site, lItem, data):
+#    init_loop_time = time.time()
     # Create variables for the while loop
     interests = []
     interests2 = []
@@ -196,6 +209,8 @@ def loadRemote(site, lItem, data):
         item_rule.infosRE = re.compile(item_rule.infos, re.IGNORECASE + re.DOTALL + re.MULTILINE)
         if item_rule.curr:
             item_rule.currRE = re.compile(item_rule.curr, re.IGNORECASE + re.DOTALL + re.MULTILINE)
+#    print "Init loop took: %s" % (time.time() - init_loop_time)
+    loop_time = time.time()
     # Find links
     while point < length:
         interest = interestingRE.search(data, point)
@@ -229,36 +244,39 @@ def loadRemote(site, lItem, data):
                 point += 1
         else:
             break
+#    print "loop took: %s" % (time.time() - loop_time)
+    elapsed_loop_time = time.time() - loop_time
+    if float(elapsed_loop_time) > 0.1:
+        print('loop took too long: %s' % site.cfg)
     return None
 
-# Helper functions for loadRemote
-
-def itemBuilder(site, rule, lItem, url, match):
+def itemBuilder(site, rule, lItem, url, match = None, infos_values = None):
     infos_names = rule.order
-    infos_values = match.groups()
+    if infos_values == None:
+        infos_values = match.groups()
     tmp = {}
     for idx, infos_name in enumerate(infos_names):
-        tmp[infos_name] = clean_safe(infos_values[idx])
+        tmp[infos_name] = infos_values[idx]
     for info in rule.info_list:
-        info_value = u''
+        info_value = ''
         if info.name in tmp:
-            if info.build.find(u'%s') != -1:
+            if info.build.find('%s') != -1:
                 tmp[info.name] = info.build % tmp[info.name]
             continue
-        if info.rule != u'':
+        if info.rule != '':
             info_rule = info.rule
-            if info.rule.find(u'%s') != -1:
+            if info.rule.find('%s') != -1:
                 src = tmp[info.src]
                 info_rule = info.rule % src
             infosearch = re.search(info_rule, data)
             if infosearch:
                 info_value = infosearch.group(1).strip()
-                if info.build.find(u'%s') != -1:
+                if info.build.find('%s') != -1:
                     info_value = info.build % info_value
             elif info.default != '':
                 info_value = info.default
         else:
-            if info.build.find(u'%s') != -1:
+            if info.build.find('%s') != -1:
                 src = tmp[info.src]
                 info_value = info.build % src
             else:
@@ -266,67 +284,29 @@ def itemBuilder(site, rule, lItem, url, match):
         tmp[info.name] = info_value
     if len(rule.actions) > 0:
         tmp = parseActions(tmp, rule.actions, url)
-    tmp[u'url'] = rule.url_build % tmp[u'url']
-    tmp[u'type'] = rule.type
-    if rule.skill.find(u'recursive') != -1:
-        site.start = tmp[u'url']
+    tmp['url'] = rule.url_build % tmp['url']
+    tmp['type'] = rule.type
+    if rule.skill.find('recursive') != -1:
+        site.start = tmp['url']
         loadRemote(site, tmp)
         tmp = None
     else:
+#        try:
+        tmp['title'] = tmp['title'].strip()
+        if rule.skill.find('space') != -1:
+            tmp['title'] = '   ' + tmp['title'] + '   '
+        elif rule.skill.find('bottom') == -1:
+            tmp['title'] = ' ' + tmp['title'] + ' '
+#        except:
+#            pass
         if rule.type in site.items:
             for item in site.items[rule.type]:
-                if tmp[u'url'] == item['url']:
+                if tmp['url'] == item['url']:
                     tmp = None
                     return None
-        keep = {}
-        for info_name, info_value in tmp.iteritems():
-            if info_name == u'title':
-                if info_value != u'':
-                    try:
-                        info_value = info_value.replace(u'\r\n', u'').replace(u'\n', u'').replace(u'\t', u'')
-                        info_value = info_value.lstrip(u' -!@#$%^&*_-+=.,)\'<>;:"[{]}\|/?`~')
-                        info_value = info_value.rstrip(u' -@#$%^&*_-+=.,<>;(:\'"[{]}\|/?`~')
-                        info_value = info_value.split(u' ')
-                        title = []
-                        for word in info_value:
-                            if word:
-                                word = word.lower().capitalize()
-                            title.append(word)
-                        info_value = u' '.join(title).replace(u'  ', u' ')
-                        info_value = u' ' + info_value + u' '
-                    except:
-                        info_value = u' ... '
-                else:
-                    info_value = u' ... '
-            elif info_name == u'duration':
-                info_value = info_value.strip(u'')
-                if info_value.find(u'(') == -1:
-                    info_value = u' (%s)' % info_value
-                if info_value[-3] == u':':
-                    try:
-                        info_value = info_value[:-2] + u'0' + info_value[-2:]
-                    except AttributeError:
-                        print(info_value)
-            elif info_name == u'icon':
-                if info_value == u'':
-                    info_value = os.path.join(imgDir, u'video.png')
-            elif info_name.rfind(u'.tmp') != -1:
-                continue
-            keep[info_name] = info_value
-        if u'duration' in keep:
-            keep[u'title'] = u''.join((keep[u'title'], keep[u'duration']))
-        tmp = inheritInfos(keep, lItem)
-        try:
-            if rule.skill.find(u'space') != -1:
-                tmp[u'title'] = u'  ' + tmp[u'title'] + u'  '
-            elif rule.skill.find(u'bottom') != -1:
-                tmp[u'title'] = tmp[u'title'].strip()
-        except:
-            pass
-        if rule.type in site.items:
-                site.items[rule.type] = (tmp, [tmp])
+            site.items[rule.type] = (tmp, [tmp])
         else:
-            tmp_infos = {u'type': rule.type}
+            tmp_infos = {'type': rule.type}
             for info in rule.info_list:
                 if info.name == 'title':
                     tmp_infos['title'] = info.build
@@ -336,15 +316,18 @@ def itemBuilder(site, rule, lItem, url, match):
             site.items[rule.type] = (tmp_infos, [tmp])
     return None
 
-def currBuilder(site, rule, lItem, url, match):
-    title = clean_safe(match.group(1).strip())
-    tmp = {}
-    if rule.skill.find(u'space') != -1:
-        tmp[u'title'] = u'   ' + title + u' (' + __language__(30106) + u')   '
+def currBuilder(site, rule, lItem, url, match = None, infos_value = None):
+    if infos_value == None:
+        title = match.group(1).strip()
     else:
-        tmp[u'title'] = u'  ' + title + u' (' + __language__(30106) + u')  '
-    tmp[u'url'] = url
-    tmp[u'type'] = rule.type
+        title = infos_value
+    tmp = {}
+    if rule.skill.find('space') != -1:
+        tmp['title'] = '   ' + title + ' (' + __language__(30106) + ')   '
+    else:
+        tmp['title'] = '  ' + title + ' (' + __language__(30106) + ')  '
+    tmp['url'] = url
+    tmp['type'] = rule.type
     for info in rule.info_list:
         if info.name == 'icon':
             tmp['icon'] = info.build
@@ -352,7 +335,7 @@ def currBuilder(site, rule, lItem, url, match):
     if rule.type in site.items:
         site.items[rule.type] = (tmp, [tmp])
     else:
-        tmp_infos = {u'type': rule.type}
+        tmp_infos = {'type': rule.type}
         for info in rule.info_list:
             if info.name == 'title':
                 tmp_infos['title'] = info.build
@@ -372,12 +355,12 @@ class ThreadUrl(threading.Thread):
 
     def run(self):
         while self.not_finished:
-            site, lItem = self.queue.get()
-            if isinstance(site, str) and site == 'quit':
+            args = self.queue.get()
+            if isinstance(args, str) and args == 'quit':
                 self.not_finished = False
-                print('killing thread')
+#                print('killing thread')
             else:
-                results = getHTML(site, lItem)
+                results = getHTML(*args)
                 if isinstance(results, str) and results == 'Skipping due to failure':
                     print('Skipping due to failure')
                 else:
@@ -394,7 +377,11 @@ class DatamineThread(threading.Thread):
     def run(self):
         while self.not_finished:
             args = self.out_queue.get()
-            loadRemote(*args)
+            if isinstance(args, str) and args == 'quit':
+                self.not_finished = False
+#                print('killing thread')
+            else:
+                loadRemote(*args)
             self.out_queue.task_done()
 
 
@@ -412,9 +399,9 @@ def main(tasks):
 
     #ThreadUrl killer
     for task in tasks:
-        queue.put(('quit', 'quit'))
-
-    for i in range(9):
+        queue.put('quit')
+    dt_count = 1
+    for i in range(dt_count):
         dt = DatamineThread(out_queue)
         dt.setDaemon(True)
         dt.start()
@@ -422,6 +409,11 @@ def main(tasks):
 
     #wait on the queue until everything has been processed
     queue.join()
+
+    #DatamineThread killer
+    for i in range(dt_count):
+        out_queue.put('quit')
+
     out_queue.join()
     print "Elapsed Time: %s" % (time.time() - start)
     cj.save(os.path.join(settingsDir, 'cookies.lwp'))

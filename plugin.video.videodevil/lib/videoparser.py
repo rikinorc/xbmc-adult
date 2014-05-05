@@ -42,50 +42,50 @@ else:
 def parseActions(item, convActions, url = None):
     for convAction in convActions:
         if convAction.find(u"(") != -1:
-            action = convAction[0:convAction.find(u'(')]
+            action = convAction[0:convAction.find('(')]
             param = convAction[len(action) + 1:-1]
-            if param.find(u', ') != -1:
-                params = param.split(u', ')
-                if action == u'replace':
+            if param.find(', ') != -1:
+                params = param.split(', ')
+                if action == 'replace':
                     item[params[0]] = item[params[0]].replace(params[1], params[2])
-                elif action == u'join':
+                elif action == 'join':
                     j = []
                     for i in range(1, len(params)):
                         j.append(item[params[i]])
                     item[params[1]] = params[0].join(j)
-                elif action == u'decrypt':
-                    item[u'match'] = sesame.decrypt(item[params[0]], item[params[1]], 256)
+                elif action == 'decrypt':
+                    item['match'] = sesame.decrypt(item[params[0]], item[params[1]], 256)
             else:
-                if action == u'unquote':
+                if action == 'unquote':
                     item[param] = urllib.unquote(item[param])
-                elif action == u'quote':
+                elif action == 'quote':
                     item[param] = urllib.quote(item[param])
-                elif action == u'decode':
+                elif action == 'decode':
                     item[param] = decode(item[param])
         else:
             action = convAction
-            if action == u'append':
-                item[u'url'] = url + item[u'url']
-            elif action == u'appendparam':
-                if url[-1] == u'?':
-                    item[u'url'] = url + item[u'url']
+            if action == 'append':
+                item['url'] = url + item['url']
+            elif action == 'appendparam':
+                if url[-1] == '?':
+                    item['url'] = url + item['url']
                 else:
-                    item[u'url'] = url + u'&' + item[u'url']
-            elif action == u'replaceparam':
+                    item['url'] = url + '&' + item['url']
+            elif action == 'replaceparam':
                 if url.rfind('?') == -1:
-                    item[u'url'] = url + u'?' + item[u'url']
+                    item['url'] = url + '?' + item['url']
                 else:
-                    item[u'url'] = url[:url.rfind('?')] + u'?' + item[u'url']
-            elif action == u'striptoslash':
-                if url.rfind(u'/'):
-                    idx = url.rfind(u'/')
-                    if url[:idx + 1] == u'http://':
-                        item[u'url'] = url + u'/' + item[u'url']
+                    item['url'] = url[:url.rfind('?')] + '?' + item['url']
+            elif action == 'striptoslash':
+                if url.rfind('/'):
+                    idx = url.rfind('/')
+                    if url[:idx + 1] == 'http://':
+                        item['url'] = url + '/' + item['url']
                     else:
-                        item[u'url'] = url[:idx + 1] + item[u'url']
-#            elif action == u'space':
+                        item['url'] = url[:idx + 1] + item['url']
+#            elif action == 'space':
 #                try:
-#                    item[u'title'] = u'  ' + item[u'title'].strip(u' ') + u'  '
+#                    item['title'] = '  ' + item['title'].strip(' ') + '  '
 #                except:
 #                    pass
     return item
@@ -98,10 +98,10 @@ class CCatcherRuleItem:
         self.dkey_actions = []
         self.info = None
         self.player = None
-        self.extension = u'flv'
-        self.quality = u'standard'
+        self.extension = 'flv'
+        self.quality = 'standard'
         self.build = None
-        self.type = u'video'
+        self.type = 'video'
         self.priority = 0
 
 
@@ -129,34 +129,34 @@ class CCatcherList:
         self.selectionList = []
         self.decryptList = []
         self.playerList = []
-        self.videoExtension = u'.flv'
+        self.videoExtension = '.flv'
         self.dkey = None
         self.link = None
         self.videoItem = self.getDirectLink(lItem)
 
     def getDirectLink(self, lItem):
-        self.loadCatcher(lItem[u'catcher'])
-        redirected = self.parseVideoPage(lItem[u'url'])
+        self.loadCatcher(lItem['catcher'])
+        redirected = self.parseVideoPage(lItem['url'])
         if redirected != None:
             return redirected.videoItem
         if self.link != None:
             tmp = {
-                u'url': self.link,
-                u'extension': self.videoExtension
+                'url': self.link,
+                'extension': self.videoExtension
                 }
             if self.player != None:
-                tmp[u'player'] = self.player
+                tmp['player'] = self.player
             tmp = inheritInfos(tmp, lItem)
             return tmp
         elif len(self.urlList) > 0:
             self.selectLink()
         if self.link != None:
             tmp = {
-                u'url': self.link,
-                u'extension': self.videoExtension
+                'url': self.link,
+                'extension': self.videoExtension
                 }
             if self.player != None:
-                tmp[u'player'] = self.player
+                tmp['player'] = self.player
             tmp = inheritInfos(tmp, lItem)
             return tmp
         return None
@@ -171,62 +171,62 @@ class CCatcherList:
         rule = None
         while self.key:
             old_line = len(self.key)
-            if self.loadKey(u'url'):
+            if self.loadKey('url'):
                 if site:
                     self.sites.append(site)
                 site = CCatcherRuleSite()
                 site.url = self.value.pop()
-            if self.loadKey(u'data'):
+            if self.loadKey('data'):
                 site.data = self.value.pop()
-            if self.loadKey(u'header'):
-                index = self.value[-1].find(u'|')
+            if self.loadKey('header'):
+                index = self.value[-1].find('|')
                 site.txheaders[value[-1][:index]] = value[-1][index+1:]
                 del self.value[-1]
-            if self.loadKey(u'limit'):
+            if self.loadKey('limit'):
                 site.limit = int(self.value.pop())
-            if self.loadKey(u'startRE'):
+            if self.loadKey('startRE'):
                 site.startRE = self.value.pop()
-            if self.loadKey(u'stopRE'):
+            if self.loadKey('stopRE'):
                 site.stopRE = self.value.pop()
             while self.key:
                 old_line = len(self.key)
-                if self.loadKey(u'target'):
+                if self.loadKey('target'):
                     if rule:
                         site.rules.append(rule)
                     rule = CCatcherRuleItem()
                     rule.target = self.value.pop()
-                if self.loadKey(u'quality'):
+                if self.loadKey('quality'):
                     rule.quality = self.value.pop()
                     continue
-                if self.loadKey(u'priority'):
+                if self.loadKey('priority'):
                     rule.priority = int(self.value.pop())
                     continue
-                if self.loadKey(u'type'):
+                if self.loadKey('type'):
                     rule.type = self.value.pop()
-                    if rule.type == u'forward' or rule.type.startswith(u'redirect'):
+                    if rule.type == 'forward' or rule.type.startswith('redirect'):
                         site.rules.append(rule)
                         rule = None
                         break
                 else:
-                    if self.loadKey(u'actions'):
-                        if self.value[-1].find(u'|') != -1:
-                            rule.actions.extend(self.value.pop().split(u'|'))
+                    if self.loadKey('actions'):
+                        if self.value[-1].find('|') != -1:
+                            rule.actions.extend(self.value.pop().split('|'))
                         else:
                             rule.actions.append(self.value.pop())
-                    if self.loadKey(u'build'):
+                    if self.loadKey('build'):
                         rule.build = self.value.pop()
-                    if self.loadKey(u'dkey'):
+                    if self.loadKey('dkey'):
                         rule.dkey = self.value.pop()
-                        if self.loadKey(u'dkey_actions'):
-                            if self.value[-1].find(u'|') != -1:
-                                rule.dkey_actions.extend(self.value.pop().split(u'|'))
+                        if self.loadKey('dkey_actions'):
+                            if self.value[-1].find('|') != -1:
+                                rule.dkey_actions.extend(self.value.pop().split('|'))
                             else:
                                 rule.dkey_actions.append(self.value.pop())
-                    if self.loadKey(u'extension'):
+                    if self.loadKey('extension'):
                         rule.extension = self.value.pop()
-                    if self.loadKey(u'info'):
+                    if self.loadKey('info'):
                         rule.info = self.value.pop()
-                    if self.loadKey(u'player'):
+                    if self.loadKey('player'):
                         rule.player = self.value.pop()
                 if len(self.key) == old_line:
                     log('Syntax Error:\n"%s" is invalid.' % self.filename)
@@ -251,7 +251,7 @@ class CCatcherList:
             print('url = ' + url)
             # Download website
             if site.data == '':
-                if site.url.find(u'%') != -1:
+                if site.url.find('%') != -1:
                     url = site.url % url
                 req = Request(url, None, site.txheaders)
                 urlfile = opener.open(req)
@@ -269,7 +269,7 @@ class CCatcherList:
                     data = response.read(site.limit)
             if enable_debug:
                 f = open(os.path.join(cacheDir, 'site.html'), 'w')
-                f.write(u'<Titel>'+ url + u'</Title>\n\n')
+                f.write('<Titel>'+ url + '</Title>\n\n')
                 f.write(data)
                 f.close()
 
@@ -335,14 +335,14 @@ class CCatcherList:
                     if len(rule.actions) > 0:
                         for group in range(1, len(match.groups()) + 1):
                             if group == 1:
-                                link = {u'match' : link}
+                                link = {'match' : link}
                             else:
-                                link[u'group' + str(group)] = match.group(group)
+                                link['group' + str(group)] = match.group(group)
                         print(link)
-                        link = parseActions(link, rule.actions)[u'match']
+                        link = parseActions(link, rule.actions)['match']
                     if rule.build != None:
                         link = rule.build % link
-                    if rule.type == u'video':
+                    if rule.type == 'video':
                         video_found = True
                         print(link)
                         self.urlList.append(link)
@@ -353,33 +353,33 @@ class CCatcherList:
                             if match:
                                 dkey = match.group(1)
                                 if len(rule.dkey_actions) > 0:
-                                    dkey = {u'match' : dkey}
+                                    dkey = {'match' : dkey}
                                     print('dkey = '  + str(dkey))
-                                    dkey = parseActions(dkey, rule.dkey_actions)[u'match']
+                                    dkey = parseActions(dkey, rule.dkey_actions)['match']
                                 print('dkey = '  + str(dkey))
                                 self.decryptList.append(dkey)
                         else:
                             self.decryptList.append(None)
                         if int(addon.getSetting('video_type')) == 0:
                             selList_type = {
-                                u'low' : __language__(30056), 
-                                u'standard' : __language__(30057), 
-                                u'high' : __language__(30058)
+                                'low' : __language__(30056), 
+                                'standard' : __language__(30057), 
+                                'high' : __language__(30058)
                             }
                             append = rule.info or rule.extension
-                            self.selectionList.append(selList_type[rule.quality] + u' (' + append + u')')
-                    elif rule.type == u'dkey':
+                            self.selectionList.append(selList_type[rule.quality] + ' (' + append + ')')
+                    elif rule.type == 'dkey':
                         self.dkey = link
                         print('self.dkey = ' + self.dkey)
-                    elif rule.type == u'forward':
+                    elif rule.type == 'forward':
                         url = clean_safe(urllib.unquote(link))
                         break
-                    elif rule.type.startswith(u'redirect'):
-                        tmp_lItem = {u'url': clean_safe(urllib.unquote(link))}
+                    elif rule.type.startswith('redirect'):
+                        tmp_lItem = {'url': clean_safe(urllib.unquote(link))}
                         print('len(self.sites) = ' + str(len(self.sites)))
                         print('url' + url)
                         if rule.type.find(u"(") != -1:
-                            tmp_lItem[u'catcher'] = rule.type[rule.type.find(u"(") + 1:-1]
+                            tmp_lItem['catcher'] = rule.type[rule.type.find(u"(") + 1:-1]
                         ### need to make the else statement below an elif statement 
                         ### and make the else default to simple-match catcher 
                         else:
@@ -387,7 +387,7 @@ class CCatcherList:
                                 for filename in files:
                                     print('filename = ' + filename)
                                     if url.find(filename) != -1:
-                                        tmp_lItem[u'catcher'] = filename
+                                        tmp_lItem['catcher'] = filename
                         ret_videoItem = CCatcherList(tmp_lItem)
                         if ret_videoItem.videoItem != None:
                             return ret_videoItem
@@ -411,6 +411,6 @@ class CCatcherList:
             self.decryptList[selection] = clean_safe(urllib.unquote(self.decryptList[selection]))
             self.urlList[selection] = sesame.decrypt(self.urlList[selection], self.decryptList[selection], 256)
         self.link = self.urlList[selection]
-        self.videoExtension = u'.' + self.extensionList[selection]
+        self.videoExtension = '.' + self.extensionList[selection]
         self.player = self.playerList[selection]
         return None

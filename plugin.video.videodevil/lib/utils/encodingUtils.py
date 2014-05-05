@@ -313,8 +313,8 @@ def clean1(s): # remove &XXX;
     if not s:
         return ''
     for name, value in entitydefs.iteritems():
-        if u'&' in s:
-            s = s.replace(u'&' + name + u';', value)
+        if '&' in s:
+            s = s.replace('&' + name + ';', value)
     return s
 
 def clean2(s): # remove \\uXXX

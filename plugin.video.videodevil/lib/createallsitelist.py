@@ -18,12 +18,12 @@ allsitesDir = sys.modules["__main__"].allsitesDir
 imgDir = sys.modules["__main__"].imgDir
 
 sort_dict = {
-    u'label' : xbmcplugin.SORT_METHOD_LABEL, 
-    u'size' : xbmcplugin.SORT_METHOD_SIZE, 
-    u'duration' : xbmcplugin.SORT_METHOD_DURATION, 
-    u'genre' : xbmcplugin.SORT_METHOD_GENRE, 
-    u'rating' : xbmcplugin.SORT_METHOD_VIDEO_RATING, 
-    u'date' : xbmcplugin.SORT_METHOD_DATE
+    'label' : xbmcplugin.SORT_METHOD_LABEL, 
+    'size' : xbmcplugin.SORT_METHOD_SIZE, 
+    'duration' : xbmcplugin.SORT_METHOD_DURATION, 
+    'genre' : xbmcplugin.SORT_METHOD_GENRE, 
+    'rating' : xbmcplugin.SORT_METHOD_VIDEO_RATING, 
+    'date' : xbmcplugin.SORT_METHOD_DATE
 }
 
 class createAllSitesList:
@@ -35,29 +35,29 @@ class createAllSitesList:
 
     def createList(self):
         tmp = {
-            u'title': u' All Sites',
-            u'icon': os.path.join(imgDir, u'face_devil_grin.png'),
-            u'director': u'VideoDevil',
-            u'url': u'sites.list',
-            u'type': u'rss'
+            'title': ' All Sites',
+            'icon': os.path.join(imgDir, 'face_devil_grin.png'),
+            'director': 'VideoDevil',
+            'url': 'sites.list',
+            'type': 'rss'
         }
         items = self.loadLocal(tmp)
         for item in items:
-            if item[u'url'] != u'allsites.list':
+            if item['url'] != 'allsites.list':
                 site = self.loadLocal(item)[0]
                 idxs = []
                 for idx, rule in enumerate(site.rules):
-                    if rule.type != u'video' and rule.type != u'next' and rule.type != u'category':
+                    if rule.type != 'video' and rule.type != 'next' and rule.type != 'category':
                         idxs.append(idx)
                 if len(idxs) > 0:
                     for i in range(len(idxs)):
                         idx = idxs.pop()
                         del site.rules[idx]
                 idxs = []
-                if u'search' in site.links:
-                    self.searchlist_items[u'search'] = (site.links[u'search'][0], site.links[u'search'])
+                if 'search' in site.links:
+                    self.searchlist_items['search'] = (site.links['search'][0], site.links['search'])
                 for idx, type in enumerate(site.links.types):
-                    if type != u'category':
+                    if type != 'category':
                         idxs.append(idx)
                 if len(idxs) > 0:
                     for i in range(len(idxs)):
@@ -67,10 +67,10 @@ class createAllSitesList:
         txt = []
         for site in self.sites:
             txt.append(str(site))
-        f = open(os.path.join(allsitesDir, u'allsites.list'), 'w')
+        f = open(os.path.join(allsitesDir, 'allsites.list'), 'w')
         f.write('\n'.join(txt))
         f.close()
-        f = open(os.path.join(allsitesDir, u'search.list'), 'w')
+        f = open(os.path.join(allsitesDir, 'search.list'), 'w')
         f.write(str(self.searchlist_items))
         f.close()
         return None

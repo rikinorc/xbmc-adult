@@ -5,18 +5,18 @@ class Mode:
     def __init__(self):
         self.current = 0
         self.modes = {
-            u'START': 0,
-            u'PLAY': 1,
-            u'DOWNLOAD': 2,
-            u'ADD': 5,
-            u'REMOVE': 6,
-            u'VIEW_RSS': 10,
-            u'VIEW_SEARCH': 11,
-            u'VIEW_RSS_DIRECTORY': 12,
-            u'VIEW_DIRECTORY': 13,
-            u'VIEWALL_RSS': 20,
-            u'VIEWALL_SEARCH': 21,
-            u'VIEWALL_DIRECTORY': 22
+            'START': 0,
+            'PLAY': 1,
+            'DOWNLOAD': 2,
+            'ADD': 5,
+            'REMOVE': 6,
+            'VIEW_RSS': 10,
+            'VIEW_SEARCH': 11,
+            'VIEW_RSS_DIRECTORY': 12,
+            'VIEW_DIRECTORY': 13,
+            'VIEWALL_RSS': 20,
+            'VIEWALL_SEARCH': 21,
+            'VIEWALL_DIRECTORY': 22
         }
 
     def __getitem__(self, m):
@@ -40,96 +40,96 @@ class Mode:
         return self.current
 
     def selectItemMode(self, item):
-        if self.current == self.modes[u'VIEW_RSS'] or self.current == self.modes[u'VIEW_SEARCH'] or self.current == self.modes[u'VIEW_RSS_DIRECTORY']:
-            if item[u'type'] == u'video':
-                item[u'mode'] = self.modes[u'PLAY']
-            elif item[u'type'] == u'search':
-                item[u'mode'] = self.modes[u'VIEW_SEARCH']
+        if self.current == self.modes['VIEW_RSS'] or self.current == self.modes['VIEW_SEARCH'] or self.current == self.modes['VIEW_RSS_DIRECTORY']:
+            if item['type'] == 'video':
+                item['mode'] = self.modes['PLAY']
+            elif item['type'] == 'search':
+                item['mode'] = self.modes['VIEW_SEARCH']
             else:
-                item[u'mode'] = self.modes[u'VIEW_RSS']
+                item['mode'] = self.modes['VIEW_RSS']
 
-        elif self.current == self.modes[u'VIEWALL_RSS'] or self.current == self.modes[u'VIEWALL_SEARCH']:
-            if item[u'type'] == u'video':
-                item[u'mode'] = self.modes[u'PLAY']
-            elif item[u'type'] == u'next':
-                item[u'mode'] = self.modes[u'VIEWALL_RSS']
+        elif self.current == self.modes['VIEWALL_RSS'] or self.current == self.modes['VIEWALL_SEARCH']:
+            if item['type'] == 'video':
+                item['mode'] = self.modes['PLAY']
+            elif item['type'] == 'next':
+                item['mode'] = self.modes['VIEWALL_RSS']
             else:
-                item[u'mode'] = self.modes[u'VIEWALL_DIRECTORY']
-        elif self.current == self.modes[u'VIEWALL_DIRECTORY']:
-            if item[u'type'] == u'video':
-                item[u'mode'] = self.modes[u'PLAY']
+                item['mode'] = self.modes['VIEWALL_DIRECTORY']
+        elif self.current == self.modes['VIEWALL_DIRECTORY']:
+            if item['type'] == 'video':
+                item['mode'] = self.modes['PLAY']
             else:
-                item[u'mode'] = self.modes[u'VIEWALL_RSS']
+                item['mode'] = self.modes['VIEWALL_RSS']
         return item
 
     def selectLinkMode(self, link):
-        if self.current == self.modes[u'START']:
-            if link[u'url'] == u'sites.list':
-                link[u'mode'] = self.modes[u'VIEWALL_RSS']
+        if self.current == self.modes['START']:
+            if link['url'] == 'sites.list':
+                link['mode'] = self.modes['VIEWALL_RSS']
             else:
-                link[u'mode'] = self.modes[u'VIEW_RSS']
+                link['mode'] = self.modes['VIEW_RSS']
 
-        elif self.current == self.modes[u'VIEW_RSS'] or self.current == self.modes[u'VIEW_SEARCH'] or self.current == self.modes[u'VIEW_RSS_DIRECTORY']:
-            if link[u'type'] == u'search':
-                link[u'mode'] = self.modes[u'VIEW_SEARCH']
-            elif getFileExtension(link[u'url']) == u'list':
-                link[u'mode'] = self.modes[u'VIEW_DIRECTORY']
+        elif self.current == self.modes['VIEW_RSS'] or self.current == self.modes['VIEW_SEARCH'] or self.current == self.modes['VIEW_RSS_DIRECTORY']:
+            if link['type'] == 'search':
+                link['mode'] = self.modes['VIEW_SEARCH']
+            elif getFileExtension(link['url']) == 'list':
+                link['mode'] = self.modes['VIEW_DIRECTORY']
             else:
-                link[u'mode'] = self.modes[u'VIEW_RSS_DIRECTORY']
-        elif self.current == self.modes[u'VIEW_DIRECTORY']:
-            link[u'mode'] = self.modes[u'VIEW_RSS']
+                link['mode'] = self.modes['VIEW_RSS_DIRECTORY']
+        elif self.current == self.modes['VIEW_DIRECTORY']:
+            link['mode'] = self.modes['VIEW_RSS']
 
-        elif self.current == self.modes[u'VIEWALL_RSS'] or self.current == self.modes[u'VIEWALL_SEARCH']:
-            if link[u'type'] == u'video':
-                link[u'mode'] = self.modes[u'PLAY']
-            elif link[u'type'] == u'next':
-                link[u'mode'] = self.modes[u'VIEWALL_RSS']
-            elif link[u'type'] == u'search':
-                link[u'mode'] = self.modes[u'VIEWALL_SEARCH']
+        elif self.current == self.modes['VIEWALL_RSS'] or self.current == self.modes['VIEWALL_SEARCH']:
+            if link['type'] == 'video':
+                link['mode'] = self.modes['PLAY']
+            elif link['type'] == 'next':
+                link['mode'] = self.modes['VIEWALL_RSS']
+            elif link['type'] == 'search':
+                link['mode'] = self.modes['VIEWALL_SEARCH']
             else:
-                link[u'mode'] = self.modes[u'VIEWALL_DIRECTORY']
-        elif self.current == self.modes[u'VIEWALL_DIRECTORY']:
-            if link[u'type'] == u'search':
-                link[u'mode'] = self.modes[u'VIEWALL_SEARCH']
+                link['mode'] = self.modes['VIEWALL_DIRECTORY']
+        elif self.current == self.modes['VIEWALL_DIRECTORY']:
+            if link['type'] == 'search':
+                link['mode'] = self.modes['VIEWALL_SEARCH']
             else:
-                link[u'mode'] = self.modes[u'VIEWALL_RSS']
+                link['mode'] = self.modes['VIEWALL_RSS']
         return link
 
     def selectMode(self, item, islink = False):
-        if self.current == self.modes[u'START']:
-            if item[u'url'] == u'sites.list':
-                item[u'mode'] = self.modes[u'VIEWALL_RSS']
+        if self.current == self.modes['START']:
+            if item['url'] == 'sites.list':
+                item['mode'] = self.modes['VIEWALL_RSS']
             else:
-                item[u'mode'] = self.modes[u'VIEW_RSS']
+                item['mode'] = self.modes['VIEW_RSS']
 
-        elif self.current == self.modes[u'VIEW_RSS'] or self.current == self.modes[u'VIEW_SEARCH'] or self.current == self.modes[u'VIEW_RSS_DIRECTORY']:
-            if item[u'type'] == u'video':
-                item[u'mode'] = self.modes[u'PLAY']
-            elif item[u'type'] == u'search':
-                item[u'mode'] = self.modes[u'VIEW_SEARCH']
-            elif getFileExtension(item[u'url']) == u'list':
-                item[u'mode'] = self.modes[u'VIEW_DIRECTORY']
+        elif self.current == self.modes['VIEW_RSS'] or self.current == self.modes['VIEW_SEARCH'] or self.current == self.modes['VIEW_RSS_DIRECTORY']:
+            if item['type'] == 'video':
+                item['mode'] = self.modes['PLAY']
+            elif item['type'] == 'search':
+                item['mode'] = self.modes['VIEW_SEARCH']
+            elif getFileExtension(item['url']) == 'list':
+                item['mode'] = self.modes['VIEW_DIRECTORY']
             elif islink:
-                item[u'mode'] = self.modes[u'VIEW_RSS_DIRECTORY']
+                item['mode'] = self.modes['VIEW_RSS_DIRECTORY']
             else:
-                item[u'mode'] = self.modes[u'VIEW_RSS']
-        elif self.current == self.modes[u'VIEW_DIRECTORY']: # and islink ?
-            item[u'mode'] = self.modes[u'VIEW_RSS']
+                item['mode'] = self.modes['VIEW_RSS']
+        elif self.current == self.modes['VIEW_DIRECTORY']: # and islink ?
+            item['mode'] = self.modes['VIEW_RSS']
 
-        elif self.current == self.modes[u'VIEWALL_RSS'] or self.current == self.modes[u'VIEWALL_SEARCH']:
-            if item[u'type'] == u'video':
-                item[u'mode'] = self.modes[u'PLAY']
-            elif item[u'type'] == u'next':
-                item[u'mode'] = self.modes[u'VIEWALL_RSS']
-            elif item[u'type'] == u'search':
-                item[u'mode'] = self.modes[u'VIEWALL_SEARCH']
+        elif self.current == self.modes['VIEWALL_RSS'] or self.current == self.modes['VIEWALL_SEARCH']:
+            if item['type'] == 'video':
+                item['mode'] = self.modes['PLAY']
+            elif item['type'] == 'next':
+                item['mode'] = self.modes['VIEWALL_RSS']
+            elif item['type'] == 'search':
+                item['mode'] = self.modes['VIEWALL_SEARCH']
             else:
-                item[u'mode'] = self.modes[u'VIEWALL_DIRECTORY']
-        elif self.current == self.modes[u'VIEWALL_DIRECTORY']:
-            if item[u'type'] == u'video':
-                item[u'mode'] = self.modes[u'PLAY']
-            elif item[u'type'] == u'search':
-                item[u'mode'] = self.modes[u'VIEWALL_SEARCH']
+                item['mode'] = self.modes['VIEWALL_DIRECTORY']
+        elif self.current == self.modes['VIEWALL_DIRECTORY']:
+            if item['type'] == 'video':
+                item['mode'] = self.modes['PLAY']
+            elif item['type'] == 'search':
+                item['mode'] = self.modes['VIEWALL_SEARCH']
             else:
-                item[u'mode'] = self.modes[u'VIEWALL_RSS']
+                item['mode'] = self.modes['VIEWALL_RSS']
         return item

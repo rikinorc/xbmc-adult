@@ -25,35 +25,35 @@ def clean_filename(s):
     return s;
 
 def getFileExtension(filename):
-    ext_pos = filename.rfind(u'.')
+    ext_pos = filename.rfind('.')
     if ext_pos != -1:
         return filename[ext_pos+1:]
     return None
 
 def saveList(directory, filename, Listname, items = None, List_dict = None, file_mode = 'w'):
     f = open(str(os.path.join(directory, filename)), file_mode)
-    Listname = u'#' + Listname.center(54) + u'#\n'
-    pound_signs = u'########################################################\n'
+    Listname = '#' + Listname.center(54) + '#\n'
+    pound_signs = '########################################################\n'
     f.write(pound_signs)
     f.write(Listname)
     f.write(pound_signs)
     if List_dict != None:
         for info_name, info_value in List_dict.iteritems():
-            f.write(u'site_' + info_name + u'=' + info_value + u'\n')
+            f.write('site_' + info_name + '=' + info_value + '\n')
         f.write(pound_signs)
     if items != None:
         for item in items:
             try:
-                f.write(u'link_title=' + item[u'title'] + u'\n')
+                f.write('link_title=' + item['title'] + '\n')
             except:
-                f.write(u'link_title=...\n')
+                f.write('link_title=...\n')
             for info_name, info_value in item.iteritems():
-                if info_name != u'url' and info_name != u'title':
-                    if info_name == u'mode':
-                        f.write(u'link_mode=' + str(info_value) + u'\n')
+                if info_name != 'url' and info_name != 'title':
+                    if info_name == 'mode':
+                        f.write('link_mode=' + str(info_value) + '\n')
                     else:
-                        f.write(u'link_' + info_name + u'=' + info_value + u'\n')
-            f.write(u'link_url=' + item[u'url'] + u'\n')
+                        f.write('link_' + info_name + '=' + info_value + '\n')
+            f.write('link_url=' + item['url'] + '\n')
             f.write(pound_signs)
     f.close()
     return
@@ -74,25 +74,24 @@ def smart_read_file(filename, shortcuts = True):
     key = []
     value = []
     for line in f:
-        line =  smart_unicode(line)
-        if line and line.startswith(u'#'):
+        if line and line.startswith('#'):
             continue
         try:
-            line = line.replace(u'\r\n', u'').replace(u'\n', u'')
+            line = line.replace('\r\n', '').replace('\n', '')
         except:
             continue
         try:
-            k, v = line.split(u'=', 1)
+            k, v = line.split('=', 1)
         except:
             continue
-        if shortcuts and v.startswith(u'video.devil.'):
-            idx = v.find(u'|')
-            if v[:idx] == u'video.devil.locale':
-                v = u'  ' + __language__(int(v[idx+1:])) + u'  '
-            elif v[:idx] == u'video.devil.image':
+        if shortcuts and v.startswith('video.devil.'):
+            idx = v.find('|')
+            if v[:idx] == 'video.devil.locale':
+                v = '  ' + __language__(int(v[idx+1:])) + '  '
+            elif v[:idx] == 'video.devil.image':
                 v = os.path.join(imgDir, v[idx+1:])
-            elif v[:idx] == u'video.devil.context':
-                v = u'context.' + __language__(int(v[idx+1:]))
+            elif v[:idx] == 'video.devil.context':
+                v = 'context.' + __language__(int(v[idx+1:]))
         key.append(k)
         value.append(v)
     key.reverse()
