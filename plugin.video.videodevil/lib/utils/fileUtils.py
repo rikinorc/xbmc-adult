@@ -50,7 +50,7 @@ def saveList(directory, filename, Listname, items = None, List_dict = None, file
             for info_name, info_value in item.iteritems():
                 if info_name != 'url' and info_name != 'title':
                     if info_name == 'mode':
-                        f.write('link_mode=' + str(info_value) + '\n')
+                        f.write('link_mode=%d\n' % info_value)
                     else:
                         f.write('link_' + info_name + '=' + info_value + '\n')
             f.write('link_url=' + item['url'] + '\n')

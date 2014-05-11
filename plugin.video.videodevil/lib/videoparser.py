@@ -135,7 +135,10 @@ class CCatcherList:
         self.videoItem = self.getDirectLink(lItem)
 
     def getDirectLink(self, lItem):
-        self.loadCatcher(lItem['catcher'])
+        filename = lItem.get('catcher', lItem['cfg'].rsplit('.', 1)[0] + '.catcher')
+        if not os.path.isfile(os.path.join(catDir, filename)):
+            filename = 'simple-match.catcher'
+        self.loadCatcher(filename)
         redirected = self.parseVideoPage(lItem['url'])
         if redirected != None:
             return redirected.videoItem
@@ -194,7 +197,7 @@ class CCatcherList:
                     if rule:
                         site.rules.append(rule)
                     rule = CCatcherRuleItem()
-                    rule.target = self.value.pop()
+                    rule.target = smart_unicode(self.value.pop())
                 if self.loadKey('quality'):
                     rule.quality = self.value.pop()
                     continue
@@ -216,7 +219,7 @@ class CCatcherList:
                     if self.loadKey('build'):
                         rule.build = self.value.pop()
                     if self.loadKey('dkey'):
-                        rule.dkey = self.value.pop()
+                        rule.dkey = smart_unicode(self.value.pop())
                         if self.loadKey('dkey_actions'):
                             if self.value[-1].find('|') != -1:
                                 rule.dkey_actions.extend(self.value.pop().split('|'))
@@ -248,7 +251,6 @@ class CCatcherList:
         for index, site in enumerate(self.sites):
             if video_found:
                 break
-            print('url = ' + url)
             # Download website
             if site.data == '':
                 if site.url.find('%') != -1:
@@ -321,16 +323,10 @@ class CCatcherList:
                                 print('stopRe not found for %s' % url)
                             else:
                                 data = data[:stop]
-#            print('self.sites.rules = ' + str(self.sites[0].rules))
-            for rule in site.rules:
-                print('rule.priority = ' + str(rule.priority))
             # Parse Website
             for rule in site.rules:
-                print('parsing site')
-                print('with rule: ' + rule.target)
                 match = re.search(rule.target, data, re.IGNORECASE + re.DOTALL + re.MULTILINE)
                 if match:
-                    print('match found' + str(rule.priority))
                     link = match.group(1)
                     if len(rule.actions) > 0:
                         for group in range(1, len(match.groups()) + 1):
@@ -338,13 +334,11 @@ class CCatcherList:
                                 link = {'match' : link}
                             else:
                                 link['group' + str(group)] = match.group(group)
-                        print(link)
                         link = parseActions(link, rule.actions)['match']
                     if rule.build != None:
                         link = rule.build % link
                     if rule.type == 'video':
                         video_found = True
-                        print(link)
                         self.urlList.append(link)
                         self.extensionList.append(rule.extension)
                         self.playerList.append(rule.player)
@@ -354,9 +348,7 @@ class CCatcherList:
                                 dkey = match.group(1)
                                 if len(rule.dkey_actions) > 0:
                                     dkey = {'match' : dkey}
-                                    print('dkey = '  + str(dkey))
                                     dkey = parseActions(dkey, rule.dkey_actions)['match']
-                                print('dkey = '  + str(dkey))
                                 self.decryptList.append(dkey)
                         else:
                             self.decryptList.append(None)
@@ -370,14 +362,11 @@ class CCatcherList:
                             self.selectionList.append(selList_type[rule.quality] + ' (' + append + ')')
                     elif rule.type == 'dkey':
                         self.dkey = link
-                        print('self.dkey = ' + self.dkey)
                     elif rule.type == 'forward':
                         url = clean_safe(urllib.unquote(link))
                         break
                     elif rule.type.startswith('redirect'):
                         tmp_lItem = {'url': clean_safe(urllib.unquote(link))}
-                        print('len(self.sites) = ' + str(len(self.sites)))
-                        print('url' + url)
                         if rule.type.find(u"(") != -1:
                             tmp_lItem['catcher'] = rule.type[rule.type.find(u"(") + 1:-1]
                         ### need to make the else statement below an elif statement 
@@ -385,13 +374,11 @@ class CCatcherList:
                         else:
                             for root, dirs, files in os.walk(catDir):
                                 for filename in files:
-                                    print('filename = ' + filename)
                                     if url.find(filename) != -1:
                                         tmp_lItem['catcher'] = filename
                         ret_videoItem = CCatcherList(tmp_lItem)
                         if ret_videoItem.videoItem != None:
                             return ret_videoItem
-                        print('len(self.sites) = ' + str(len(self.sites)))
                         break
                     if int(addon.getSetting('video_type')) != 0 and rule.priority != 0:
                         break

@@ -77,7 +77,10 @@ class CRuleItem:
 class CRuleSite:
     def __init__(self):
         self.start = ''
-        self.txheaders = []
+        self.txheaders = {
+            'User-Agent': 'Mozilla/5.0 (Windows; U; Windows NT 5.2; en-GB; rv:1.8.1.18) Gecko/20081029 Firefox/2.0.0.18',
+            'Accept-Charset':'ISO-8859-1,utf-8;q=0.7,*;q=0.7'
+        }
         self.skill = ''
         self.sort = []
         self.startRE = ''
@@ -88,7 +91,7 @@ class CRuleSite:
 
     def __str__(self):
         txt = ['site_start=%s' % self.start]
-        if len(self.txheaders) != 0:
+        if len(self.txheaders) != 0: #needs to be fixed
             txt.append('site_header=%s' % '|'.join([k for k in self.txheaders]))
         if self.skill != '':
             txt.append('site_skill=%s' % self.skill)
@@ -142,7 +145,8 @@ def loadLocal(lItem, search_phrase = None):
                 elif 'cfg' in lItem:
                     site.cfg = lItem['cfg']
             if loadKey('site_header'):
-                site.txheaders.extend(values.pop().split('|'))
+                headers = values.pop().split('|')
+                site.txheaders[headers[0]] = headers[1]
             if loadKey('site_skill'):
                 site.skill = values.pop()
                 skill_file = filename[:filename.find('.')] + '.lnk'
@@ -178,7 +182,7 @@ def loadLocal(lItem, search_phrase = None):
             old_line = len(keys)
             if loadKey('item_infos'):
                 rule_tmp = CRuleItem()
-                rule_tmp.infos = smart_unicode(values.pop())
+                rule_tmp.infos = values.pop()
             if loadKey('item_order'):
                 if values[-1].find('|') != -1:
                     rule_tmp.order.extend(values.pop().split('|'))
@@ -187,7 +191,7 @@ def loadLocal(lItem, search_phrase = None):
             if loadKey('item_skill'):
                 rule_tmp.skill = values.pop()
             if loadKey('item_curr'):
-                rule_tmp.curr = smart_unicode(values.pop())
+                rule_tmp.curr = values.pop()
             if loadKey('item_type'):
                 rule_tmp.type = values.pop()
             while keys and keys[-1].startswith('item_info_'):
@@ -222,15 +226,7 @@ def loadLocal(lItem, search_phrase = None):
                     rule_tmp.actions.append(values.pop())
             if loadKey('item_url_build'):
                 rule_tmp.url_build = values.pop()
-                info_tmp = CItemInfo()
-                info_tmp.name = 'inherited'
-                infos_keys = rule_tmp.order + [info.name for info in rule_tmp.info_list]
-                info_tmp.build = '&'.join([k + '=' + lItem[k] for k in lItem.keys() if k not in infos_keys and k != 'type'])
-                info_tmp.build += '&type=' + rule_tmp.type
-                rule_tmp.info_list.append(info_tmp)
-                info_tmp = None
-                if rule_tmp.type == 'video':
-                    site.rules.append(rule_tmp)
+                site.rules.append(rule_tmp)
                 rule_tmp = None
             if len(keys) == old_line:
                 log('Syntax Error: "%s" is invalid.' % filename)
@@ -340,8 +336,8 @@ class localParser:
         return None
 
     def load_links_and_all_sites_links(self, lItem):
-        load_all_sites_links()
-        load_links(lItem)
+        self.load_all_sites_links()
+        self.load_links(lItem)
         return None
 
     def load_links_and_sites_in_list(self, lItem):

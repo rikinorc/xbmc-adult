@@ -1,5 +1,5 @@
 # -*- coding: latin-1 -*-
-from string import capitalize, lower
+#from string import capitalize, lower
 import sys, os.path
 import os, traceback
 import re
@@ -14,6 +14,7 @@ import xbmc
 from lib.common import inheritInfos, smart_unicode
 
 from lib.utils.encodingUtils import clean_safe
+from lib.utils.xbmcUtils import addListItem, addListItems
 
 import sesame
 
@@ -32,10 +33,6 @@ log = sys.modules["__main__"].log
 urlopen = urllib2.urlopen
 cj = cookielib.LWPCookieJar()
 Request = urllib2.Request
-txheaders = {
-    'User-Agent': 'Mozilla/5.0 (Windows; U; Windows NT 5.2; en-GB; rv:1.8.1.18) Gecko/20081029 Firefox/2.0.0.18',
-    'Accept-Charset':'ISO-8859-1,utf-8;q=0.7,*;q=0.7'
-}
 
 if cj != None:
     if os.path.isfile(xbmc.translatePath(os.path.join(settingsDir, 'cookies.lwp'))):
@@ -46,17 +43,11 @@ else:
     opener = urllib2.build_opener()
     urllib2.install_opener(opener)
 
-queue = Queue.Queue()
-out_queue = Queue.Queue()
-
 def parseActions(item, convActions, url = None):
-#    print('item = ' + str(item))
     for convAction in convActions:
         if convAction.find(u"(") != -1:
             action = convAction[0:convAction.find('(')]
-#            print('action = ' + action)
             param = convAction[len(action) + 1:-1]
-#            print('param = ' + param)
             if param.find(', ') != -1:
                 params = param.split(', ')
                 if action == 'replace':
@@ -103,20 +94,17 @@ def parseActions(item, convActions, url = None):
 #                    pass
     return item
 
-#
-def getHTML(site, lItem):
-    if len(site.txheaders) != 0:
-        txheaders[site.txheaders[0]] = site.txheaders[1]
-    req = Request(site.start, None, txheaders)
+def fetchHTML(site, lItem):
+    req = Request(site.start, None, site.txheaders)
+    start = time.clock()
     try:
         handle = urlopen(req)
     except:
-        print('Failed to open "%s", url is invalid' % site.start)
         if enable_debug:
             traceback.print_exc(file = sys.stdout)
         return 'Skipping due to failure'
+    start = time.clock()
     data = handle.read()
-#    print('site received')
     return site, lItem, data
 
 
@@ -126,43 +114,100 @@ def loadRemote(site, lItem, data):
         f.write('<Title>'+ site.start + '</Title>\n\n')
         f.write(data)
         f.close()
-#    print('parsing site')
-#    loadRemoteFor(site, lItem, data)
-    loadRemoteWhile(site, lItem, data)
-    return None
+    return loadRemoteFor(site, lItem, data)
+#    return loadRemoteWhile(site, lItem, data)
 
 # Helper functions for loadRemote
 def loadRemoteFor(site, lItem, data):
+    lock, items = [], []
     for item_rule in site.rules:
-        item_rule.infosRE = re.compile(item_rule.infos, re.IGNORECASE + re.DOTALL + re.MULTILINE)
-        for infos_values in item_rule.infosRE.findall(data):
-            itemBuilder(site, item_rule, lItem, site.start, infos_values = infos_values)
-        if item_rule.curr:
-            item_rule.currRE = re.compile(item_rule.curr, re.IGNORECASE + re.DOTALL + re.MULTILINE)
-            for infos_value in item_rule.currRE.findall(data):
-                currBuilder(site, item_rule, lItem, site.start, infos_value = infos_value)
-    return None
+        rule_items, tmp_rule_items = [], []
+        if item_rule.type in lock:
+            continue
+        elif item_rule.skill.find('recursive') != -1:  #Need to fix this
+            site.start = tmp['url']
+            loadRemote(site, lItem, fetchHTML(site, lItem)[2])
+            tmp = None
+        else:
+            item_rule.infosRE = re.compile(item_rule.infos, re.IGNORECASE + re.DOTALL + re.MULTILINE)
+            reInfos = item_rule.infosRE.findall(data)
+            if len(reInfos) >= 1:
+                lock.append(item_rule.type)
+                tmp_rule_items = [dict(zip(item_rule.order, infos_values)) for infos_values in reInfos]
+                infos = list(item_rule.order)
+                for info in item_rule.info_list:
+                    info_value = ''
+                    if info.name in infos:
+                        if info.build.find('%s') != -1:
+                            for tmp in tmp_rule_items:
+                                tmp[info.name] = info.build % tmp[info.name]
+                        continue
+                    if info.rule != '':
+                        info_rule = info.rule
+                        if info.rule.find('%s') != -1:
+                            src = tmp[info.src]
+                            info_rule = info.rule % src
+                        infosearch = re.search(info_rule, data)
+                        if infosearch:
+                            info_value = infosearch.group(1).strip()
+                            if info.build.find('%s') != -1:
+                                info_value = info.build % info_value
+                        elif info.default != '':
+                            info_value = info.default
+                    else:
+                        if info.build.find('%s') != -1:
+                            src = tmp[info.src]
+                            info_value = info.build % src
+                        else:
+                            info_value = info.build
+                    for tmp in tmp_rule_items:
+                        tmp[info.name] = info_value
+                if len(item_rule.actions) > 0:
+                    for tmp in tmp_rule_items:
+                        tmp = parseActions(tmp, item_rule.actions, site.start)
+                for tmp in tmp_rule_items:
+                    tmp['url'] = item_rule.url_build % tmp['url']
+                    tmp['type'] = item_rule.type
+                for i, tmp in enumerate(tmp_rule_items):
+                    for item in tmp_rule_items[i + 1:]:
+                        if tmp['url'] == item['url']:
+                            break
+                    else:
+                        rule_items.append(tmp)
+                infoFormatter(rule_items, item_rule.order + [info.name for info in item_rule.info_list])
+                if item_rule.skill.find('space') != -1:
+                    for item in rule_items:
+                        item['title'] = '   ' + item['title'] + '   '
+                elif item_rule.skill.find('bottom') == -1:
+                    for item in rule_items:
+                        item['title'] = ' ' + item['title'] + ' '
+            if item_rule.curr:
+                item_rule.currRE = re.compile(item_rule.curr, re.IGNORECASE + re.DOTALL + re.MULTILINE)
+                reCurr = item_rule.currRE.findall(data)
+                if len(reCurr) >= 1:
+                    lock.append(item_rule.type)
+                for infos_value in reCurr:
+                    tmp = currBuilder(site, item_rule, lItem, site.start, infos_value = infos_value)
+                    for item in rule_items:
+                        if tmp['url'] == item['url']:
+                            break
+                    else:
+                        rule_items.append(tmp)
+            if item_rule.type == 'video':
+                addListItems([inheritInfos(item, lItem) for item in rule_items])
+            else:
+                items.extend([inheritInfos(item, lItem) for item in rule_items])
+    return items
 
-def loadRemoteWhile(site, lItem, data):
-#    init_loop_time = time.time()
+def createInterestingLists(site):
     # Create variables for the while loop
     interests = []
     interests2 = []
     interesting_items = []
-    if site.startRE:
-        point = data.find(site.startRE.encode('utf-8'))
-        if point == -1:
-            print('startRe not found for %s' % site.cfg)
-            point = 0
-    else:
-        point = 0
-    length = len(data)
     # Append interests lists and modify rule RE patterns
     interestRE = re.compile(r'[-a-zA-Z0-9/,:;%!&$_#=~@<> ]+', re.IGNORECASE + re.DOTALL + re.MULTILINE)
+    rules_tmp = []
     for item_rule in site.rules:
-        item_rule.infos = item_rule.infos.encode('utf-8')
-        if item_rule.curr:
-            item_rule.curr = item_rule.curr.encode('utf-8')
         match = interestRE.match(item_rule.infos)
         if match:
             interests.append(match.group(0))
@@ -202,15 +247,20 @@ def loadRemoteWhile(site, lItem, data):
     interesting_pattern = '(' + '|'.join(interesting_items) + ')'
     interestingRE = re.compile(interesting_pattern, re.IGNORECASE + re.DOTALL + re.MULTILINE)
     # Create REs for while loop
-    for item_rule in site.rules:
+    for item_rule in rules_tmp:
         match = interestingRE.match(item_rule.infos)
         if match:
             item_rule.infos = item_rule.infos[match.end():]
         item_rule.infosRE = re.compile(item_rule.infos, re.IGNORECASE + re.DOTALL + re.MULTILINE)
         if item_rule.curr:
             item_rule.currRE = re.compile(item_rule.curr, re.IGNORECASE + re.DOTALL + re.MULTILINE)
-#    print "Init loop took: %s" % (time.time() - init_loop_time)
-    loop_time = time.time()
+    print "Init loop took: %s" % (time.clock() - init_loop_time)
+    return interests, interestingRE
+
+def loadRemoteWhile(site, lItem, data):
+    interests, interestingRE = createInterestingLists(site)
+    point = 0
+    length = len(data)
     # Find links
     while point < length:
         interest = interestingRE.search(data, point)
@@ -219,7 +269,7 @@ def loadRemoteWhile(site, lItem, data):
             intersting_point = interest.start()
             jump = len(interest.group(0))
             for index, rule_name in enumerate(interests):
-                item_rule = site.rules[index]
+                item_rule = rules_tmp[index]
                 if rule_name.startswith(interest.group(0)):
                     match = item_rule.infosRE.match(data, point + jump)
                     if match:
@@ -244,19 +294,13 @@ def loadRemoteWhile(site, lItem, data):
                 point += 1
         else:
             break
-#    print "loop took: %s" % (time.time() - loop_time)
-    elapsed_loop_time = time.time() - loop_time
-    if float(elapsed_loop_time) > 0.1:
-        print('loop took too long: %s' % site.cfg)
     return None
 
 def itemBuilder(site, rule, lItem, url, match = None, infos_values = None):
     infos_names = rule.order
     if infos_values == None:
         infos_values = match.groups()
-    tmp = {}
-    for idx, infos_name in enumerate(infos_names):
-        tmp[infos_name] = infos_values[idx]
+    tmp = dict(zip(infos_names, infos_values))
     for info in rule.info_list:
         info_value = ''
         if info.name in tmp:
@@ -286,41 +330,17 @@ def itemBuilder(site, rule, lItem, url, match = None, infos_values = None):
         tmp = parseActions(tmp, rule.actions, url)
     tmp['url'] = rule.url_build % tmp['url']
     tmp['type'] = rule.type
-    if rule.skill.find('recursive') != -1:
+    if rule.skill.find('recursive') != -1:  #Need to fix this
         site.start = tmp['url']
-        loadRemote(site, tmp)
+        loadRemote(site, lItem, fetchHTML(site, lItem)[2])
         tmp = None
-    else:
-#        try:
-        tmp['title'] = tmp['title'].strip()
-        if rule.skill.find('space') != -1:
-            tmp['title'] = '   ' + tmp['title'] + '   '
-        elif rule.skill.find('bottom') == -1:
-            tmp['title'] = ' ' + tmp['title'] + ' '
-#        except:
-#            pass
-        if rule.type in site.items:
-            for item in site.items[rule.type]:
-                if tmp['url'] == item['url']:
-                    tmp = None
-                    return None
-            site.items[rule.type] = (tmp, [tmp])
-        else:
-            tmp_infos = {'type': rule.type}
-            for info in rule.info_list:
-                if info.name == 'title':
-                    tmp_infos['title'] = info.build
-                elif info.name == 'icon':
-                    tmp_infos['icon'] = info.build
-            tmp_infos = inheritInfos(tmp_infos, lItem)
-            site.items[rule.type] = (tmp_infos, [tmp])
-    return None
+    return tmp
 
 def currBuilder(site, rule, lItem, url, match = None, infos_value = None):
     if infos_value == None:
         title = match.group(1).strip()
     else:
-        title = infos_value
+        title = infos_value.strip()
     tmp = {}
     if rule.skill.find('space') != -1:
         tmp['title'] = '   ' + title + ' (' + __language__(30106) + ')   '
@@ -331,91 +351,175 @@ def currBuilder(site, rule, lItem, url, match = None, infos_value = None):
     for info in rule.info_list:
         if info.name == 'icon':
             tmp['icon'] = info.build
-    tmp = inheritInfos(tmp, lItem)
-    if rule.type in site.items:
-        site.items[rule.type] = (tmp, [tmp])
-    else:
-        tmp_infos = {'type': rule.type}
-        for info in rule.info_list:
-            if info.name == 'title':
-                tmp_infos['title'] = info.build
-            elif info.name == 'icon':
-                tmp_infos['icon'] = info.build
-        tmp_infos = inheritInfos(tmp_infos, lItem)
-        site.items[rule.type] = (tmp_infos, [tmp])
-    return None
+    return tmp
+
+
+def infoFormatter(items, infos):
+    if 'title' in infos:
+        for item in items:
+            try:
+                if item['title'] != '':
+                    item['title'] = item['title'].replace('\r\n', '').replace('\n', '').replace('\t', '')
+                    item['title'] = item['title'].lstrip(' -@#$%^&*_-+=.,\';:"\|/?`~>)]}!')
+                    item['title'] = item['title'].rstrip(' -@#$%^&*_-+=.,;:\'"\|/?`~<([{')
+                    item['title'] = item['title'].title()
+                else:
+                    item['title'] = ' ... '
+            except UnicodeDecodeError:
+                item['title'] = smart_unicode(item['title'])
+                item['title'] = item['title'].replace(u'\r\n', u'').replace(u'\n', u'').replace(u'\t', u'')
+                item['title'] = item['title'].lstrip(u' -@#$%^&*_-+=.,\';:"\|/?`~>)]}!')
+                item['title'] = item['title'].rstrip(u' -@#$%^&*_-+=.,;:\'"\|/?`~<([{')
+                item['title'] = item['title'].title()
+    if 'duration' in infos:
+        for item in items:
+            item['duration'] = item['duration'].strip(' ()')
+            if item['duration'][-2] == ':':
+    #            try:
+                item['duration'] = item['duration'][:-2] + '0' + item['duration'][-2:]
+    #            except AttributeError:
+    #                print(item['duration'])
+            item['title'] = item['title'] + ' (' +  item['duration'] + ')'
+    if 'icon' in infos:
+        for item in items:
+            if item['icon'] == '':
+                item['icon'] = os.path.join(imgDir, 'video.png')
+    for info in infos:
+        if info.endswith('.tmp'):
+            for item in items:
+                del item[info]
+    return items
 
 class ThreadUrl(threading.Thread):
     """Threaded Url Grab"""
-    def __init__(self, queue, out_queue):
+    def __init__(self, fetch_queue, parse_queue, continuous = False):
         threading.Thread.__init__(self)
-        self.queue = queue
-        self.out_queue = out_queue
-        self.not_finished = True
+        self.fetch_queue = fetch_queue
+        self.parse_queue = parse_queue
+        self.continuous = continuous
 
     def run(self):
-        while self.not_finished:
-            args = self.queue.get()
+        args = self.fetch_queue.get()
+        site, lItem = args
+        start = time.clock()
+        results = fetchHTML(site, lItem)
+        print '%s took: %s to fetch' % (site.cfg, (time.clock() - start))
+        self.parse_queue.put(results)
+        self.fetch_queue.task_done()
+        while self.continuous:
+            args = self.fetch_queue.get()
             if isinstance(args, str) and args == 'quit':
-                self.not_finished = False
-#                print('killing thread')
+                self.continuous = False
             else:
-                results = getHTML(*args)
+                site, lItem = args
+                start = time.clock()
+                results = fetchHTML(site, lItem)
+                print '%s took: %s to fetch' % (site.cfg, (time.clock() - start))
                 if isinstance(results, str) and results == 'Skipping due to failure':
                     print('Skipping due to failure')
                 else:
-                    self.out_queue.put(results)
-            self.queue.task_done()
+                    self.parse_queue.put(results)
+            self.fetch_queue.task_done()
 
 class DatamineThread(threading.Thread):
     """Threaded Url Grab"""
-    def __init__(self, out_queue):
+    def __init__(self, parse_queue, items, continuous = True):
         threading.Thread.__init__(self)
-        self.out_queue = out_queue
-        self.not_finished = True
+        self.parse_queue = parse_queue
+        self.continuous = continuous
+        self.items = items
 
     def run(self):
-        while self.not_finished:
-            args = self.out_queue.get()
+        args = self.parse_queue.get()
+        site, lItem, data = args
+        self.items.extend(loadRemote(site, lItem, data))
+        self.parse_queue.task_done()
+        while self.continuous:
+            args = self.parse_queue.get()
             if isinstance(args, str) and args == 'quit':
-                self.not_finished = False
-#                print('killing thread')
+                self.continuous = False
             else:
-                loadRemote(*args)
-            self.out_queue.task_done()
+                site, lItem, data = args
+                self.items.extend(loadRemote(site, lItem, data))
+            self.parse_queue.task_done()
 
+class remoteParser:
+    def __init__(self):
+        self.fetch_queue = None
+        self.parse_queue = None
+        self.fetch_threads = []
+        self.parse_threads = []
+        self.task_count = 0
+        self.items = []
 
-def main(tasks):
-    start = time.time()
-    #spawn a pool of threads, and pass them queue instance
-    for i in range(len(tasks)):
-        t = ThreadUrl(queue, out_queue)
-        t.setDaemon(True)
-        t.start()
+    def start_fetch_threads(self):
+        for fetch_thread in self.fetch_threads:
+            fetch_thread.start()
 
-    #populate queue with data
-    for task in tasks:
-        queue.put(task)
+    def start_parse_threads(self):
+        for parse_thread in self.parse_threads:
+            parse_thread.start()
 
-    #ThreadUrl killer
-    for task in tasks:
-        queue.put('quit')
-    dt_count = 1
-    for i in range(dt_count):
-        dt = DatamineThread(out_queue)
-        dt.setDaemon(True)
-        dt.start()
+    def kill_fetch_threads(self):
+        for fetch_thread in self.fetch_threads:
+            self.fetch_queue.put('quit')
 
+    def kill_parse_threads(self):
+        for parse_thread in self.parse_threads:
+            self.parse_queue.put('quit')
 
-    #wait on the queue until everything has been processed
-    queue.join()
+    def populate_fetch_queue(self, tasks):
+        for task in tasks:
+            self.fetch_queue.put(task)
 
-    #DatamineThread killer
-    for i in range(dt_count):
-        out_queue.put('quit')
+    def populate_parse_queue(self, tasks):
+        for task in tasks:
+            self.parse_queue.put(task)
 
-    out_queue.join()
-    print "Elapsed Time: %s" % (time.time() - start)
-    cj.save(os.path.join(settingsDir, 'cookies.lwp'))
-    return
+    def wait_for_fetch_queue(self):
+        self.fetch_queue.join()
+
+    def wait_for_parse_queue(self):
+        self.parse_queue.join()
+
+    def spawn_fetch_threads(self, count): #by default thread does not loop continuously set 3rd arg to True loop continuously
+        for i in range(count):
+            fetch_thread = ThreadUrl(self.fetch_queue, self.parse_queue)
+            fetch_thread.setDaemon(True)
+            self.fetch_threads.append(fetch_thread)
+
+    def spawn_parse_threads(self, count): #by default thread loops continuously set 3rd arg to False to only process one queue item
+        for i in range(count):
+            parse_thread = DatamineThread(self.parse_queue, self.items)
+            parse_thread.setDaemon(True)
+            self.parse_threads.append(parse_thread)
+
+    def remoteDataMiner(self):
+        for i in range(self.task_count):
+            args = self.parse_queue.get()
+            site, lItem, data = args
+            self.items.extend(loadRemote(site, lItem, data))
+            self.parse_queue.task_done()
+
+    def main(self, tasks):
+        self.task_count += len(tasks)
+        start = time.clock()
+        if len(tasks) > 1:
+            self.fetch_queue = Queue.Queue()
+            self.parse_queue = Queue.Queue()
+            self.spawn_fetch_threads(len(tasks))
+            self.start_fetch_threads()
+            self.populate_fetch_queue(tasks)
+#            self.kill_fetch_threads()
+#            self.spawn_parse_threads(1)
+#            self.start_parse_threads()
+            self.remoteDataMiner()
+            self.wait_for_fetch_queue()
+#            self.kill_parse_threads()
+#            self.wait_for_parse_queue()
+        elif len(tasks) == 1:
+            self.items = loadRemote(*fetchHTML(*tasks[0]))
+        print "Elapsed Time: %s" % (time.clock() - start)
+        cj.save(os.path.join(settingsDir, 'cookies.lwp'))
+        return self.items
 

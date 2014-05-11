@@ -1,4 +1,9 @@
 import xbmc, xbmcaddon
+import xbmcplugin, xbmcgui
+import sys, os.path
+import os, traceback
+import urllib
+import cProfile
 
 xbmc.log('Initializing VideoDevil')
 
@@ -9,10 +14,6 @@ if addon.getSetting('enable_debug') == 'true':
 else:
     enable_debug = False
 
-import xbmcplugin, xbmcgui
-import sys, os.path
-import os, traceback
-import urllib
 
 __plugin__ = 'VideoDevil'
 __author__ = 'sfaxman'
@@ -56,6 +57,8 @@ def decodeUrl(url):
             if info_name == 'mode':
                 mode.setMode(info_value)
             else:
+                if info_name == 'url':
+                    info_value.replace(u'\xa0', u' ')
                 item[info_name] = urllib.unquote(info_value)
     return item
 
@@ -116,21 +119,9 @@ try:
             elif mode == 'DOWNLOAD':
                 from lib.utils.videoUtils import downloadMovie
                 result = downloadMovie(videoItem)
-        elif mode == 'ADD':
-            self.addItem(lItem['url'][:-4], lItem)
-            result = -1
-        elif mode == 'REMOVE':
-            dia = xbmcgui.Dialog()
-            if dia.yesno('', __language__(30054)):
-                self.removeItem(lItem['url'][:-7])
-            result = -2
         else:
-            if mode == 'VIEW_RSS' or mode == 'VIEW_SEARCH' or mode == 'VIEW_RSS_DIRECTORY' or mode == 'VIEW_DIRECTORY':
-                from lib.viewmanager import viewManager
-                result = viewManager(handle, lItem).result
-            elif mode == 'VIEWALL_RSS' or mode == 'VIEWALL_SEARCH' or mode == 'VIEWALL_DIRECTORY':
-                from lib.viewallmanager import viewallManager
-                result = viewallManager(handle, lItem).result
+            from lib.parseview import parseView
+            result = parseView(handle, lItem).result
         if result == 0:
             if int(addon.getSetting('list_view')) == 0:
                 xbmc.executebuiltin("Container.SetViewMode(500)")
