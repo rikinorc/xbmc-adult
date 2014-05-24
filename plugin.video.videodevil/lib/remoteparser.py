@@ -31,12 +31,14 @@ enable_debug = sys.modules["__main__"].enable_debug
 log = sys.modules["__main__"].log
 
 urlopen = urllib2.urlopen
-cj = cookielib.LWPCookieJar()
+cj = cookielib.MozillaCookieJar(xbmc.translatePath(os.path.join(settingsDir, 'cookies.txt')))
 Request = urllib2.Request
 
 if cj != None:
-    if os.path.isfile(xbmc.translatePath(os.path.join(settingsDir, 'cookies.lwp'))):
-        cj.load(xbmc.translatePath(os.path.join(settingsDir, 'cookies.lwp')))
+    try:
+        cj.load()
+    except:
+        pass
     opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(cj))
     urllib2.install_opener(opener)
 else:
@@ -520,6 +522,6 @@ class remoteParser:
         elif len(tasks) == 1:
             self.items = loadRemote(*fetchHTML(*tasks[0]))
         print "Elapsed Time: %s" % (time.clock() - start)
-        cj.save(os.path.join(settingsDir, 'cookies.lwp'))
+        cj.save()
         return self.items
 
