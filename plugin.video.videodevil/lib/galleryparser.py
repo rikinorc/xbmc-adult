@@ -33,7 +33,7 @@ imgDir = os.path.join(resDir, 'images')
 catDir = os.path.join(resDir, 'catchers')
 
 urlopen = urllib2.urlopen
-cj = cookielib.LWPCookieJar(xbmc.translatePath(os.path.join(settingsDir, 'cookies.lwp')))
+cj = cookielib.MozillaCookieJar(xbmc.translatePath(os.path.join(settingsDir, 'cookies.txt')))
 Request = urllib2.Request
 USERAGENT = 'Mozilla/5.0 (Windows; U; Windows NT 5.2; en-GB; rv:1.8.1.18) Gecko/20081029 Firefox/2.0.0.18'
 

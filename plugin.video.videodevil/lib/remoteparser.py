@@ -31,7 +31,7 @@ enable_debug = sys.modules["__main__"].enable_debug
 log = sys.modules["__main__"].log
 
 urlopen = urllib2.urlopen
-cj = cookielib.LWPCookieJar(xbmc.translatePath(os.path.join(settingsDir, 'cookies.lwp')))
+cj = cookielib.MozillaCookieJar(xbmc.translatePath(os.path.join(settingsDir, 'cookies.txt')))
 Request = urllib2.Request
 
 if cj != None:
